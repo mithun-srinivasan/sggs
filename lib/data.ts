@@ -282,6 +282,10 @@ export function clampAng(n: number): number {
  * The result is cached for 6 hours (`revalidate: 21600`) because the
  * Hukamnama changes at Amrit Vela each morning, never more often.
  *
+ * Between midnight IST and Amrit Vela the new day's Hukamnama is not
+ * published yet, so the previous day's (still in effect) is served instead,
+ * labelled with its own date.
+ *
  * @returns the combined Hukamnama info, or `null` on any fetch failure.
  */
 export async function getHukamnama(): Promise<HukamnamaInfo | null> {
@@ -299,14 +303,22 @@ export async function getHukamnama(): Promise<HukamnamaInfo | null> {
   const year = get("year");
   const month = get("month");
   const day = get("day");
-  const istNow = new Date(year, month - 1, day);
 
-  const dateLabel = istNow.toLocaleDateString("en-GB", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+  /**
+   * Candidate IST dates, newest first.  Between midnight and Amrit Vela the
+   * current day's Hukamnama is not published yet (BaniDB answers 404), so we
+   * fall back to the previous day's — still the Hukamnama in effect.
+   */
+  const candidates = [new Date(year, month - 1, day), new Date(year, month - 1, day - 1)];
+
+  /** Human-readable label (e.g. "Monday, 14 September 2026") for a date. */
+  const formatDateLabel = (d: Date) =>
+    d.toLocaleDateString("en-GB", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
 
   /** Scrapes the SGPC page for the day's official Hukamnama scan image. */
   const fetchSgpcScan = async (): Promise<string | undefined> => {
@@ -329,34 +341,44 @@ export async function getHukamnama(): Promise<HukamnamaInfo | null> {
     }
   };
 
-  /** Fetches BaniDB's text mirror of the same SGPC daily selection. */
+  /**
+   * Fetches BaniDB's text mirror of the same SGPC daily selection.
+   * Tries each candidate date newest-first so the pre-dawn gap (today's
+   * Hukamnama not yet published) transparently serves yesterday's instead.
+   */
   const fetchBaniText = async (): Promise<HukamnamaInfo | null> => {
-    try {
-      const url = `${BANIDB_BASE}/hukamnamas/${year}/${month}/${day}`;
-      const res = await fetchUpstream(url, { next: { revalidate: 21600 } });
-      if (!res.ok) return null;
+    for (const candidate of candidates) {
+      try {
+        const y = candidate.getFullYear();
+        const m = candidate.getMonth() + 1;
+        const d = candidate.getDate();
+        const url = `${BANIDB_BASE}/hukamnamas/${y}/${m}/${d}`;
+        const res = await fetchUpstream(url, { next: { revalidate: 21600 } });
+        if (!res.ok) continue;
 
-      const data: BaniDbHukamnamaResponse = await res.json();
-      const shabad = data?.shabads?.[0];
-      if (!shabad) return null;
+        const data: BaniDbHukamnamaResponse = await res.json();
+        const shabad = data?.shabads?.[0];
+        if (!shabad) continue;
 
-      const info = shabad.shabadInfo ?? {};
-      const ang = info.pageNo ?? MIN_ANG;
-      const lines = (shabad.verses ?? []).map((raw, i) => mapVerse(raw, ang, i));
+        const info = shabad.shabadInfo ?? {};
+        const ang = info.pageNo ?? MIN_ANG;
+        const lines = (shabad.verses ?? []).map((raw, i) => mapVerse(raw, ang, i));
 
-      return {
-        dateLabel,
-        ang,
-        raag: info.raag?.english ?? undefined,
-        writer: info.writer?.english ?? undefined,
-        lines,
-        sgpcImage: undefined,
-        sgpcPage: SGPC_HUKAMNAMA_URL,
-        sourceNote: "Daily Hukamnama — Sri Darbar Sahib, Amritsar (via SGPC)",
-      };
-    } catch {
-      return null; // fail soft: no Hukamnama is better than a broken Home page
+        return {
+          dateLabel: formatDateLabel(candidate),
+          ang,
+          raag: info.raag?.english ?? undefined,
+          writer: info.writer?.english ?? undefined,
+          lines,
+          sgpcImage: undefined,
+          sgpcPage: SGPC_HUKAMNAMA_URL,
+          sourceNote: "Daily Hukamnama — Sri Darbar Sahib, Amritsar (via SGPC)",
+        };
+      } catch {
+        continue; // try the older candidate before giving up
+      }
     }
+    return null; // fail soft: no Hukamnama is better than a broken Home page
   };
 
   // -- Fetch the SGPC scan and the BaniDB text mirror concurrently -----------
