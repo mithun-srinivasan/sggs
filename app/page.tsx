@@ -27,6 +27,7 @@ import HukamnamaCard from "@/components/HukamnamaCard";
 import NitnemCard from "@/components/NitnemCard";
 import ReadingJourney from "@/components/ReadingJourney";
 import GurpurabCalendar from "@/components/GurpurabCalendar";
+import { KhandaIcon } from "@/components/SikhSymbols";
 import {
   BookOpen,
   Search,
@@ -636,18 +637,31 @@ export default function HomePage() {
           </section>
         </main>
 
-        {/* Simple footer */}
-        <footer className="mt-16 border-t border-[var(--border-subtle)] bg-[var(--surface)]/80 backdrop-blur-md py-8 text-center text-xs text-[var(--text-muted)]">
-          <p>Sri Guru Granth Sahib Ji — Ang Reader</p>
+        {/* Footer — Fateh, app name, source link, author credit */}
+        <footer className="mt-16 border-t border-[var(--border-subtle)] bg-[var(--surface)]/80 backdrop-blur-md px-5 py-10 text-center">
+          <KhandaIcon size={34} className="text-[var(--accent)]" />
+          <p dir="auto" lang="pa" className="font-gurmukhi mt-4 text-lg font-semibold leading-relaxed text-[var(--text)]">
+            ਵਾਹਿਗੁਰੂ ਜੀ ਕਾ ਖਾਲਸਾ ॥ ਵਾਹਿਗੁਰੂ ਜੀ ਕੀ ਫਤਹਿ ॥
+          </p>
+          <p className="mt-1 text-xs italic text-[var(--text-muted)]">
+            Waheguru Ji Ka Khalsa, Waheguru Ji Ki Fateh
+          </p>
+          <div className="mx-auto mt-5 h-px w-24 bg-[var(--border)]" aria-hidden="true" />
+          <p className="mt-5 text-xs text-[var(--text-muted)]">
+            Sri Guru Granth Sahib Ji — Ang Reader
+          </p>
           <a
             href="https://github.com/mithun-srinivasan/sggs"
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-2 inline-flex items-center gap-1.5 font-semibold text-[var(--text-muted)] transition hover:text-[var(--accent)]"
+            className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--text-muted)] transition hover:text-[var(--accent)]"
           >
             <Github size={13} />
             <span>Open source on GitHub</span>
           </a>
+          <p className="mt-3 text-[11px] text-[var(--text-faint)]">
+            Made with love and faith by Mithun <span aria-hidden="true">ੴ</span>
+          </p>
         </footer>
       </div>
     </div>
