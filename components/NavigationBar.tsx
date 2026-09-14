@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useState, useEffect, type FormEvent } from "react";
+import { useState, useEffect, useCallback, type FormEvent } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -73,10 +73,39 @@ export default function NavigationBar({ angNumber }: { angNumber: number }) {
     return () => window.removeEventListener("scroll", handleScroll);
   }, [prevScrollY, controlsOpen]);
 
-  const goTo = (n: number) => {
+  const goTo = useCallback((n: number) => {
     const clamped = clampAng(n);
     router.push(`/ang/${clamped}`);
-  };
+  }, [router]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
+        return;
+      }
+
+      const target = event.target;
+      const isEditable =
+        target instanceof HTMLElement &&
+        (target.isContentEditable ||
+          ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
+
+      if (isEditable) return;
+
+      if (event.key === "ArrowLeft" && angNumber > MIN_ANG) {
+        event.preventDefault();
+        goTo(angNumber - 1);
+      }
+
+      if (event.key === "ArrowRight" && angNumber < MAX_ANG) {
+        event.preventDefault();
+        goTo(angNumber + 1);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [angNumber, goTo]);
 
   const handleGoSubmit = (e: FormEvent) => {
     e.preventDefault();

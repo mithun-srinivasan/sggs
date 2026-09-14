@@ -18,6 +18,7 @@ import {
   Sparkles,
   Sun,
   Moon,
+  Coffee,
 } from "lucide-react";
 import { MAX_ANG, MIN_ANG } from "@/lib/types";
 
@@ -173,6 +174,8 @@ export default function HomePage() {
   };
 
   const currentVerse = SACRED_VERSES[verseIndex];
+  const nextTheme = prefs.theme === "light" ? "dark" : prefs.theme === "dark" ? "sepia" : "light";
+  const ThemeIcon = prefs.theme === "light" ? Sun : prefs.theme === "dark" ? Moon : Coffee;
 
   return (
     <div className="relative min-h-screen text-[var(--text)] transition-colors overflow-hidden icon-border">
@@ -231,13 +234,12 @@ export default function HomePage() {
             </Link>
 
             <button
-              onClick={() => prefs.setTheme(prefs.theme === "light" ? "dark" : "light")}
-              aria-label={prefs.theme === "light" ? "Switch to dark theme" : "Switch to light theme"}
-              title={prefs.theme === "light" ? "Switch to dark theme" : "Switch to light theme"}
+              onClick={() => prefs.setTheme(nextTheme)}
+              aria-label={`Switch to ${nextTheme} theme`}
+              title={`Switch to ${nextTheme} theme`}
               className="flex h-10 w-10 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:text-[var(--text)] hover:bg-[var(--surface-hover)] bg-[var(--surface)]/80"
             >
-              <Sun size={18} className="hidden" />
-              <Moon size={18} className="hidden" />
+              <ThemeIcon size={18} />
             </button>
 
               <Link
