@@ -42,6 +42,7 @@ import {
   Moon,
   Coffee,
   GraduationCap,
+  Github,
 } from "lucide-react";
 import { MAX_ANG, MIN_ANG } from "@/lib/types";
 
@@ -337,6 +338,18 @@ export default function HomePage() {
                 <GraduationCap size={18} />
               </Link>
 
+              {/* GitHub source */}
+              <a
+                href="https://github.com/mithun-srinivasan/sggs"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="View source on GitHub"
+                title="View source on GitHub"
+                className="flex h-10 w-10 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:text-[var(--text)] hover:bg-[var(--surface-hover)] active:scale-[0.97]"
+              >
+                <Github size={18} />
+              </a>
+
               {/* Theme cycle: light → dark → sepia → light */}
               <button
                 onClick={() => prefs.setTheme(nextTheme)}
@@ -626,6 +639,15 @@ export default function HomePage() {
         {/* Simple footer */}
         <footer className="mt-16 border-t border-[var(--border-subtle)] bg-[var(--surface)]/80 backdrop-blur-md py-8 text-center text-xs text-[var(--text-muted)]">
           <p>Sri Guru Granth Sahib Ji — Ang Reader</p>
+          <a
+            href="https://github.com/mithun-srinivasan/sggs"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-2 inline-flex items-center gap-1.5 font-semibold text-[var(--text-muted)] transition hover:text-[var(--accent)]"
+          >
+            <Github size={13} />
+            <span>Open source on GitHub</span>
+          </a>
         </footer>
       </div>
     </div>
