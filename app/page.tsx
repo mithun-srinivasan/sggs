@@ -1,6 +1,24 @@
+/**
+ * app/page.tsx
+ * ---------------------------------------------------------------------------
+ * The home / landing page of Sri Guru Granth Sahib Ji Reader.
+ *
+ * Sections rendered (top to bottom):
+ *   1. Pinned glass header — logo, fullscreen toggle, search, bookmarks, theme
+ *   2. Hero — Mool Mantar, app title, Resume / Random Ang buttons
+ *   3. Quick Ang navigation — slider (1–1430), quick-jump markers, number input
+ *   4. Sacred Wisdom — a rotating selection of famous verses with "Read in Context" links
+ *   5. 31 Raags & Major Sections — a grid of link cards to every Raag's starting Ang
+ *   6. Footer
+ *
+ * Data read on mount:
+ *   - `sggs_last_ang` from localStorage → "Resume Ang N" button text
+ *   - `fullscreenchange` event → toggle the fullscreen icon
+ */
+
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -21,6 +39,12 @@ import {
   Coffee,
 } from "lucide-react";
 import { MAX_ANG, MIN_ANG } from "@/lib/types";
+
+// -------------------------------------------------------------------------
+// Featured sacred verses shown in the "Sacred Wisdom" carousel section.
+// Each entry contains the original Gurmukhi, transliteration, English
+// translation, source Ang, and author attribution.
+// -------------------------------------------------------------------------
 
 const SACRED_VERSES = [
   {
@@ -73,6 +97,12 @@ const SACRED_VERSES = [
   },
 ];
 
+// -------------------------------------------------------------------------
+// The 31 main Raags plus major scripture sections (Japji Sahib, Sukhmani
+// Sahib, Anand Sahib, etc.).  Used to render the quick-link card grid
+// and to determine which Raag an Ang number belongs to.
+// -------------------------------------------------------------------------
+
 const RAAG_SECTIONS = [
   { name: "Japji Sahib", gurmukhi: "ਜਪੁਜੀ ਸਾਹਿਬ", ang: 1 },
   { name: "Sodhar Rehras", gurmukhi: "ਸੋ ਦਰੁ ਰਹਿਰਾਸਿ", ang: 8 },
@@ -113,6 +143,10 @@ const RAAG_SECTIONS = [
   { name: "Slok Sahskriti & Bhagat Bani", gurmukhi: "ਸਲੋਕ ਸਹਸਕ੍ਰਿਤੀ", ang: 1353 },
 ];
 
+/**
+ * Returns the display name (with Gurmukhi) of the Raag/section that
+ * an Ang number falls within.  Used by the slider display.
+ */
 function getRaagForAng(angNum: number): string {
   let matched = "Japji Sahib";
   for (const item of RAAG_SECTIONS) {
@@ -123,15 +157,34 @@ function getRaagForAng(angNum: number): string {
   return matched;
 }
 
+// -------------------------------------------------------------------------
+// Home page component
+// -------------------------------------------------------------------------
+
 export default function HomePage() {
   const router = useRouter();
   const prefs = useReaderPrefs();
+
+  // -- Local state ----------------------------------------------------------
+
+  /** The target Ang selected via the slider / number input (before navigation). */
   const [targetAng, setTargetAng] = useState<number>(1);
+
+  /** The last Ang the user read, read from localStorage. `null` until hydrated. */
   const [lastReadAng, setLastReadAng] = useState<number | null>(null);
+
+  /** Whether the browser is currently in fullscreen mode. */
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  /** Index of the currently displayed sacred verse (0–SACRED_VERSES.length-1). */
   const [verseIndex, setVerseIndex] = useState<number>(0);
+
+  /** Brief opacity animation while rotating between sacred verses. */
   const [isRotating, setIsRotating] = useState(false);
 
+  // -- Effects --------------------------------------------------------------
+
+  /** Hydrate `lastReadAng` from localStorage once on mount. */
   useEffect(() => {
     try {
       const saved = localStorage.getItem("sggs_last_ang");
@@ -142,16 +195,18 @@ export default function HomePage() {
         }
       }
     } catch {
-      // Storage fallback
+      // localStorage unavailable or corrupt — safe to ignore.
     }
   }, []);
 
+  /** Listen for the fullscreen API change to update the header icon. */
   useEffect(() => {
     const handleFs = () => setIsFullscreen(!!document.fullscreenElement);
     document.addEventListener("fullscreenchange", handleFs);
     return () => document.removeEventListener("fullscreenchange", handleFs);
   }, []);
 
+  /** Toggles the browser fullscreen API. */
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen().catch(() => {});
@@ -160,11 +215,16 @@ export default function HomePage() {
     }
   };
 
+  /** Navigates to a random Ang between MIN_ANG and MAX_ANG (inclusive). */
   const handleRandomAng = () => {
     const random = Math.floor(Math.random() * (MAX_ANG - MIN_ANG + 1)) + MIN_ANG;
     router.push(`/ang/${random}`);
   };
 
+  /**
+   * Rotates to the next sacred verse with a brief fade-out/fade-in
+   * animation driven by the `isRotating` state and a 150ms timeout.
+   */
   const nextSacredVerse = () => {
     setIsRotating(true);
     setTimeout(() => {
@@ -173,13 +233,21 @@ export default function HomePage() {
     }, 150);
   };
 
+  // -- Derived values -------------------------------------------------------
+
   const currentVerse = SACRED_VERSES[verseIndex];
+
+  /** The next theme in the cycle: light → dark → sepia → light. */
   const nextTheme = prefs.theme === "light" ? "dark" : prefs.theme === "dark" ? "sepia" : "light";
+
+  /** Icon component matching the current theme. */
   const ThemeIcon = prefs.theme === "light" ? Sun : prefs.theme === "dark" ? Moon : Coffee;
 
   return (
     <div className="relative min-h-screen text-[var(--text)] transition-colors overflow-hidden icon-border">
-      {/* Background Image — Sri Harmandir Sahib Night */}
+      {/* ------------------------------------------------------------------ */}
+      {/* Background Image — Sri Harmandir Sahib (Golden Temple) at night     */}
+      {/* ------------------------------------------------------------------ */}
       <div className="fixed inset-0 z-0">
         <Image
           src="/golden-temple-night.png"
@@ -190,14 +258,21 @@ export default function HomePage() {
           sizes="100vw"
           className="object-cover object-center pointer-events-none"
         />
+        {/* Semi-transparent theme-coloured overlay with soft blur */}
         <div className="absolute inset-0 bg-[var(--bg)]/80 backdrop-blur-[2px] transition-colors" />
       </div>
 
-      {/* Foreground Content */}
+      {/* ------------------------------------------------------------------ */}
+      {/* Foreground Content                                                   */}
+      {/* ------------------------------------------------------------------ */}
       <div className="relative z-10 min-h-screen">
-        {/* Pinned Glass Header */}
+
+        {/* -------------------------------------------------------------- */}
+        {/* Pinned Glass Header                                              */}
+        {/* -------------------------------------------------------------- */}
         <header className="sticky top-0 z-30 glass-nav-pinned">
           <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-3 sm:px-6">
+            {/* Logo / Title */}
             <Link href="/" className="flex items-center gap-2">
               <span className="font-gurmukhi text-lg font-bold text-[var(--accent)]">ੴ</span>
               <h1 className="text-sm font-bold tracking-tight text-[var(--text)]">
@@ -206,6 +281,7 @@ export default function HomePage() {
             </Link>
 
             <nav className="flex items-center gap-1">
+              {/* Fullscreen toggle */}
               <button
                 onClick={toggleFullscreen}
                 aria-label={isFullscreen ? "Exit Fullscreen" : "Fullscreen Mode"}
@@ -215,6 +291,7 @@ export default function HomePage() {
                 {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
               </button>
 
+              {/* Search */}
               <Link
                 href="/search"
                 aria-label="Search Gurbani"
@@ -224,24 +301,27 @@ export default function HomePage() {
                 <Search size={18} />
               </Link>
 
-<Link
-              href="/bookmarks"
-              aria-label="Saved Bookmarks"
-              title="Saved Bookmarks"
-              className="flex h-10 w-10 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:text-[var(--text)] hover:bg-[var(--surface-hover)] active:scale-[0.97]"
-            >
-              <Bookmark size={18} />
-            </Link>
+              {/* Bookmarks */}
+              <Link
+                href="/bookmarks"
+                aria-label="Saved Bookmarks"
+                title="Saved Bookmarks"
+                className="flex h-10 w-10 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:text-[var(--text)] hover:bg-[var(--surface-hover)] active:scale-[0.97]"
+              >
+                <Bookmark size={18} />
+              </Link>
 
-            <button
-              onClick={() => prefs.setTheme(nextTheme)}
-              aria-label={`Switch to ${nextTheme} theme`}
-              title={`Switch to ${nextTheme} theme`}
-              className="flex h-10 w-10 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:text-[var(--text)] hover:bg-[var(--surface-hover)] bg-[var(--surface)]/80"
-            >
-              <ThemeIcon size={18} />
-            </button>
+              {/* Theme cycle: light → dark → sepia → light */}
+              <button
+                onClick={() => prefs.setTheme(nextTheme)}
+                aria-label={`Switch to ${nextTheme} theme`}
+                title={`Switch to ${nextTheme} theme`}
+                className="flex h-10 w-10 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:text-[var(--text)] hover:bg-[var(--surface-hover)] bg-[var(--surface)]/80"
+              >
+                <ThemeIcon size={18} />
+              </button>
 
+              {/* Quick-read button (desktop only) — always links to last-read or Ang 1 */}
               <Link
                 href={`/ang/${lastReadAng || 1}`}
                 className="hidden sm:inline-flex items-center gap-2 rounded-lg bg-[var(--accent)] px-4 py-2 text-xs font-semibold text-white transition hover:opacity-90 active:scale-[0.97]"
@@ -254,7 +334,10 @@ export default function HomePage() {
         </header>
 
         <main className="mx-auto max-w-4xl px-5 py-12 sm:px-8 sm:py-16 space-y-16 animate-in fade-in duration-300">
-          {/* Hero Section */}
+
+          {/* -------------------------------------------------------------- */}
+          {/* Hero Section                                                     */}
+          {/* -------------------------------------------------------------- */}
           <section className="text-center space-y-6">
             <p className="font-gurmukhi text-3xl sm:text-4xl text-[var(--accent)] font-semibold tracking-wide">
               ੴ ਸਤਿ ਨਾਮੁ ਕਰਤਾ ਪੁਰਖੁ
@@ -270,6 +353,7 @@ export default function HomePage() {
             </div>
 
             <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+              {/* Resume (or start from Ang 1) */}
               <Link
                 href={`/ang/${lastReadAng || 1}`}
                 className="flex min-h-[44px] items-center gap-2 rounded-xl bg-[var(--accent)] px-6 py-3 text-xs font-semibold text-white transition hover:opacity-90 active:scale-[0.97]"
@@ -278,6 +362,7 @@ export default function HomePage() {
                 <span>{lastReadAng ? `Resume Ang ${lastReadAng}` : "Begin Reading (Ang 1)"}</span>
               </Link>
 
+              {/* Random Ang */}
               <button
                 onClick={handleRandomAng}
                 className="flex min-h-[44px] items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)]/80 backdrop-blur-md px-5 py-3 text-xs font-semibold text-[var(--text)] transition hover:bg-[var(--surface-hover)] active:scale-[0.97]"
@@ -288,7 +373,9 @@ export default function HomePage() {
             </div>
           </section>
 
-          {/* Smooth, Tactile & Usable Quick Ang Navigation Slider */}
+          {/* -------------------------------------------------------------- */}
+          {/* Quick Ang Navigation — slider + quick-jump markers + number input */}
+          {/* -------------------------------------------------------------- */}
           <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)]/80 backdrop-blur-md p-6 sm:p-8 space-y-6 shadow-[var(--shadow-subtle)]">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
@@ -307,14 +394,18 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Smooth Slider with Filled Progress Highlight */}
+            {/* Custom slider: a hidden `<input type="range">` with a painted
+                progress bar and floating thumb rendered via absolute positioning. */}
             <div className="space-y-4">
               <div className="relative flex items-center py-2">
+                {/* Background track */}
                 <div className="absolute h-2.5 w-full rounded-full bg-[var(--border)]" />
+                {/* Filled progress bar */}
                 <div
                   className="absolute h-2.5 rounded-full bg-[var(--accent)] transition-all duration-75"
                   style={{ width: `${((targetAng - 1) / (MAX_ANG - 1)) * 100}%` }}
                 />
+                {/* Actual range input (opacity-0, overlays the painted elements) */}
                 <input
                   type="range"
                   min={MIN_ANG}
@@ -324,13 +415,14 @@ export default function HomePage() {
                   className="relative z-10 h-2.5 w-full cursor-pointer opacity-0"
                   aria-label="Ang number selection slider"
                 />
+                {/* Custom thumb indicator */}
                 <div
                   className="absolute z-20 h-5 w-5 rounded-full bg-[var(--accent)] shadow-md border-2 border-[var(--surface)] pointer-events-none transition-transform active:scale-125"
                   style={{ left: `calc(${((targetAng - 1) / (MAX_ANG - 1)) * 100}% - 10px)` }}
                 />
               </div>
 
-              {/* Quick Jump Landmark Shortcuts */}
+              {/* Quick-jump landmark buttons */}
               <div className="flex flex-wrap items-center justify-between gap-1.5 pt-1 text-[11px]">
                 <span className="text-[var(--text-faint)]">Quick Jumps:</span>
                 <div className="flex flex-wrap gap-1.5">
@@ -350,6 +442,7 @@ export default function HomePage() {
                 </div>
               </div>
 
+              {/* Number input + Go button */}
               <div className="flex items-center justify-between gap-3 pt-2">
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-[var(--text-muted)]">Ang:</span>
@@ -377,7 +470,9 @@ export default function HomePage() {
             </div>
           </section>
 
-          {/* Dynamic Sacred Wisdom & Contemplation Section */}
+          {/* -------------------------------------------------------------- */}
+          {/* Sacred Wisdom — rotating featured verse display                    */}
+          {/* -------------------------------------------------------------- */}
           <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)]/80 backdrop-blur-md p-6 sm:p-8 text-center space-y-5 shadow-[var(--shadow-subtle)]">
             <div className="flex items-center justify-between gap-2 border-b border-[var(--border-subtle)] pb-3">
               <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-[var(--accent)]">
@@ -385,6 +480,7 @@ export default function HomePage() {
                 <span>{currentVerse.title}</span>
               </div>
 
+              {/* "Next Verse" button with brief spinning animation */}
               <button
                 onClick={nextSacredVerse}
                 aria-label="Refresh contemplation verse"
@@ -396,6 +492,7 @@ export default function HomePage() {
               </button>
             </div>
 
+            {/* The verse content, fading briefly during rotation */}
             <div className={`space-y-3 max-w-2xl mx-auto transition-opacity duration-150 ${isRotating ? "opacity-30" : "opacity-100"}`}>
               <p className="font-gurmukhi text-xl sm:text-2xl leading-relaxed text-[var(--text)] font-semibold">
                 {currentVerse.gurmukhi}
@@ -424,10 +521,12 @@ export default function HomePage() {
             </div>
           </section>
 
-          {/* 31 Main Raags & Major Sections */}
+          {/* -------------------------------------------------------------- */}
+          {/* 31 Main Raags & Major Sections — link card grid                 */}
+          {/* -------------------------------------------------------------- */}
           <section className="space-y-6">
             <div className="text-center space-y-1">
-              <h3 className="text-lg font-bold text-[var(--text)]">31 Main Raags & Major Sections</h3>
+              <h3 className="text-lg font-bold text-[var(--text)]">31 Main Raags &amp; Major Sections</h3>
               <p className="text-xs text-[var(--text-muted)]">Jump directly to the starting Ang of any major section.</p>
             </div>
 
@@ -453,6 +552,7 @@ export default function HomePage() {
           </section>
         </main>
 
+        {/* Simple footer */}
         <footer className="mt-16 border-t border-[var(--border-subtle)] bg-[var(--surface)]/80 backdrop-blur-md py-8 text-center text-xs text-[var(--text-muted)]">
           <p>Sri Guru Granth Sahib Ji — Ang Reader</p>
         </footer>

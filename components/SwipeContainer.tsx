@@ -1,3 +1,14 @@
+/**
+ * components/SwipeContainer.tsx
+ * ---------------------------------------------------------------------------
+ * Wraps the main Ang content with a horizontal-swipe gesture detector.
+ *
+ * On touch devices, swiping left navigates to the next Ang and swiping right
+ * navigates to the previous Ang (both clamped to the valid 1–1430 range).
+ * Vertical scrolling is never affected — the hook filters for dominant
+ * horizontal movement before triggering navigation.
+ */
+
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -15,11 +26,20 @@ export default function SwipeContainer({
 }) {
   const router = useRouter();
 
+  /**
+   * Navigates to the given Ang number, clamped to the valid range.
+   * This ensures we never route to an invalid URL.
+   */
   const goTo = (n: number) => router.push(`/ang/${clampAng(n)}`);
 
+  /**
+   * Wire the swipe handlers:
+   *   swipe left  (finger moves leftward)  → next Ang
+   *   swipe right (finger moves rightward)  → previous Ang
+   */
   const swipeHandlers = useSwipeNavigation(
-    () => angNumber < MAX_ANG && goTo(angNumber + 1), // swipe left -> next
-    () => angNumber > MIN_ANG && goTo(angNumber - 1)  // swipe right -> prev
+    () => angNumber < MAX_ANG && goTo(angNumber + 1),
+    () => angNumber > MIN_ANG && goTo(angNumber - 1)
   );
 
   return (

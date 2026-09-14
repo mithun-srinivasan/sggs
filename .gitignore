@@ -1,7 +1,18 @@
+# Dependencies
 node_modules
+
+# Next.js build output
 .next
-tsconfig.tsbuildinfo
+
+# TypeScript incremental build info (matches any location)
+*.tsbuildinfo
+
+# Vercel local config (machine-specific, not shared)
 .vercel
+
+# Environment files (contains secrets / tokens)
 .env*
+
+# Playwright artifacts
 test-results/
 playwright-report/

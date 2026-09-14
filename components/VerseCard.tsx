@@ -1,3 +1,20 @@
+/**
+ * components/VerseCard.tsx
+ * ---------------------------------------------------------------------------
+ * Renders a single verse (tuk) from Sri Guru Granth Sahib Ji.
+ *
+ * Each card shows:
+ *   1. The primary Gurmukhi text (dominant size)
+ *   2. Optional transliteration
+ *   3. Optional translation (English or Punjabi, per user preference)
+ *   4. Footer with writer metadata + line number
+ *   5. Hover-reveal action buttons: Copy to clipboard / Toggle bookmark
+ *
+ * The verse's font size, transliteration visibility, translation visibility,
+ * translation language, and Lareevar mode are all driven by the reader
+ * preferences context.
+ */
+
 "use client";
 
 import { useState } from "react";
@@ -15,22 +32,44 @@ export default function VerseCard({
 }) {
   const prefs = useReaderPrefs();
   const { isBookmarked, toggleBookmark } = useBookmarks();
+
+  /** Whether the "Copied!" confirmation is currently visible (resets after 2s). */
   const [copied, setCopied] = useState(false);
+
+  /** O(1) check via the Set-backed hook. */
   const saved = isBookmarked(line.id);
+
+  /** The active translation for the user's chosen language (may be undefined). */
   const translation = line.translations[prefs.translationLang];
 
+  /** In Lareevar mode all whitespace is stripped to form a continuous text flow. */
   const gurmukhiText = prefs.isLareevarMode
     ? line.gurmukhi.replace(/\s+/g, "")
     : line.gurmukhi;
 
+  /**
+   * Copies the verse to the clipboard in a multi-line format:
+   *   Gurmukhi
+   *   Transliteration (if present)
+   *   Translation (if present)
+   *   — Sri Guru Granth Sahib Ji (Ang N)
+   */
   const handleCopy = async () => {
     try {
-      const textToCopy = `${line.gurmukhi}\n${line.transliteration ? line.transliteration + "\n" : ""}${translation ? translation + "\n" : ""}— Sri Guru Granth Sahib Ji (Ang ${angNumber})`;
+      const textToCopy = [
+        line.gurmukhi,
+        line.transliteration ? line.transliteration : "",
+        translation ? translation : "",
+        `— Sri Guru Granth Sahib Ji (Ang ${angNumber})`,
+      ]
+        .filter(Boolean) // drop empty lines
+        .join("\n");
       await navigator.clipboard.writeText(textToCopy);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Clipboard restriction fallback
+      // Clipboard access is not available in all browsers / contexts;
+      // the error is silently ignored since the action is non-critical.
     }
   };
 
@@ -46,7 +85,7 @@ export default function VerseCard({
         lang="pa"
         className="font-gurmukhi text-[1.8em] font-medium leading-[1.95] text-[var(--text)] tracking-normal selection:bg-[var(--accent-light)]"
       >
-{gurmukhiText}
+        {gurmukhiText}
       </p>
 
       {/* Secondary: Transliteration */}
@@ -65,14 +104,16 @@ export default function VerseCard({
 
       {/* Verse Metadata & Actions */}
       <div className="mt-5 flex items-center justify-between pt-1 text-xs">
+        {/* Writer and line number (left-aligned, subdued text) */}
         <div className="flex items-center gap-2 text-[11px] text-[var(--text-faint)]">
           {line.writer && <span className="font-medium">{line.writer}</span>}
           {line.writer && line.lineNo && <span>·</span>}
           {line.lineNo && <span>Line {line.lineNo}</span>}
         </div>
 
-        {/* Minimal Actions with tactile press state & 44x44px touch target */}
+        {/* Action buttons — low-contrast by default; revealed on verse hover */}
         <div className="flex items-center gap-1 opacity-60 transition-opacity group-hover:opacity-100">
+          {/* Copy verse text */}
           <button
             onClick={handleCopy}
             aria-label="Copy verse text"
@@ -82,6 +123,7 @@ export default function VerseCard({
             {copied ? <Check size={16} className="text-[var(--accent)]" /> : <Copy size={16} />}
           </button>
 
+          {/* Toggle bookmark */}
           <button
             onClick={() =>
               toggleBookmark({

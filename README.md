@@ -2,34 +2,33 @@
 
 A focused, verse-by-verse web reader for Sri Guru Granth Sahib Ji. The app
 supports all 1,430 Angs, Unicode Gurmukhi, optional transliteration and
-translations, saved verses, Gurbani search, and responsive navigation.
+translations, saved verses (with JSON export/import), Gurbani search, and
+responsive navigation.
 
 ## Technology
 
-- Next.js 16.3.5 with the App Router
+- Next.js 16.3.5 with the App Router (statically generated for all 1430 Angs)
 - React 19
-- TypeScript
-- Tailwind CSS v4 through `@tailwindcss/postcss`
+- TypeScript (strict mode)
+- Tailwind CSS v4 via `@tailwindcss/postcss`
 - Lucide React icons
-- BaniDB v2 for Ang and search data
+- BaniDB v2 public API for scripture data
 
 ## Requirements
 
-- Node.js 20 or newer is recommended.
+- Node.js 20 or newer
 - npm
-- Internet access when loading live BaniDB data or running a production build
+- Internet access for BaniDB data (fetched at build time, cached forever)
 
 ## Getting started
-
-From the project directory:
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in a browser. The home
-page provides resume, random Ang, quick-jump, search, and reading entry points.
+Open [http://localhost:localhost:3000](http://localhost:3000). The home page
+provides resume, random Ang, quick-jump, search, and reading entry points.
 
 To create and run a production build:
 
@@ -38,31 +37,30 @@ npm run build
 npm run start
 ```
 
-The available npm scripts are:
+### Available scripts
 
 | Command | Purpose |
 | --- | --- |
 | `npm run dev` | Start the local development server |
-| `npm run build` | Build and statically generate the application |
-| `npm run start` | Serve the production build |
-| `npm run lint` | Run the configured Next.js lint command |
+| `npm run build` | Build and statically generate all 1430 Ang pages |
+| `npm run start` | Serve the production build locally |
+| `npm run typecheck` | Run the TypeScript compiler in noEmit mode |
+| `npm run test` | Run the Playwright end-to-end test suite |
 
 ## Features
 
 ### Ang reader
 
 - Reads Ang 1 through Ang 1430 at `/ang/[id]`.
-- Fetches Ang data from BaniDB's `/v2/angs/:id` endpoint.
-- Displays Unicode Gurmukhi, transliteration, writer metadata when available,
-  and line numbers when provided by the API.
-- Shows English or Punjabi translation when that translation exists.
-- Copies a verse and its available supporting text to the clipboard.
+- Fetches Ang data from BaniDB's `/v2/angs/:id` endpoint at build time.
+- Displays Unicode Gurmukhi, transliteration, writer metadata, and line numbers.
+- Shows English or Punjabi translation when available.
+- Copies a verse (with attribution) to the clipboard.
 - Saves individual verses as bookmarks.
-- Provides previous and next controls in the top and bottom navigation bars.
-- Supports fast horizontal touch swipes for previous/next Ang navigation while
-  preserving normal vertical scrolling.
-- Moves to the previous Ang when the reader is scrolled back to the top, and
-  can advance to the next Ang at the end of the current page.
+- Lareevar reading mode — blends Gurmukhi words into a continuous flow.
+- Previous/Next controls in top and bottom navigation bars.
+- Horizontal touch swipes for previous/next Ang on touch devices.
+- Auto-scroll to previous Ang (scroll to top) and next Ang (scroll to bottom).
 
 ### Reader preferences
 
@@ -71,19 +69,19 @@ The settings panel supports:
 - Showing or hiding transliteration
 - Showing or hiding translations
 - Selecting English or Punjabi translations
-- Increasing or decreasing text size from 80% to 160%
+- Increasing or decreasing text size (80%–160%)
 - Light, dark, and sepia themes
 
-Preferences are stored in the browser's `localStorage` under
-`sgs-reader-prefs`.
+Preferences are stored in `localStorage` under `sgs-reader-prefs`.
 
 ### Search and bookmarks
 
 - `/search` searches BaniDB by Gurmukhi or English text.
+- Quick-search suggestion chips for common terms.
 - Search results link directly to the matching Ang and verse fragment.
-- `/bookmarks` lists saved verses and links back to their Ang and verse.
-- Bookmarks are stored locally under `sgs-reader-bookmarks`; they are not
-  synced between browsers or devices.
+- `/bookmarks` lists saved verses with date stamps and deep links.
+- JSON export and import for backup and transfer between devices.
+- Bookmarks are stored locally under `sgs-reader-bookmarks`.
 
 ### Home page
 
@@ -91,62 +89,57 @@ The home page at `/` includes:
 
 - Resume the last Ang opened in the browser
 - Random Ang navigation
-- A number input and slider for jumping to any Ang
-- Quick links to major scripture sections
-- A rotating selection of featured verses
+- A slider and number input for jumping to any Ang
+- Quick links to major scripture sections (31 Raags)
+- A rotating selection of featured sacred verses
 - Links to search, bookmarks, and the reader
-
-The last opened Ang is stored locally under `sggs_last_ang`.
 
 ## Data and caching
 
 The BaniDB integration lives in [`lib/data.ts`](lib/data.ts). It maps the API
-response into the application's `Ang` and `VerseLine` types and safely handles
-missing writers, translations, transliterations, and network failures.
+response into the application's `Ang` and `VerseLine` types with null-guards
+for missing writers, translations, and transliterations.
 
-`app/ang/[id]/page.tsx` defines static parameters for all 1,430 Angs. As a
-result, `npm run build` requests the Ang data during the build and can take
-longer than a typical small Next.js build. The fetch is configured to cache
-scripture data indefinitely.
+`app/ang/[id]/page.tsx` defines static parameters for all 1,430 Angs via
+`generateStaticParams`. The Ang data is fetched during `npm run build` and
+cached indefinitely. The build can therefore take longer than a typical
+small Next.js build.
 
-The search endpoint uses uncached requests because search results are dynamic.
-The app currently fails softly when BaniDB is unavailable: an Ang that cannot
-be loaded is treated as unavailable, and a failed search returns no results.
+The search endpoint uses uncached requests because results are dynamic.
 
 ## Project structure
 
 ```text
 app/
-  layout.tsx                 Root layout, fonts, and application providers
-  page.tsx                   Home page
-  globals.css               Global styles and theme variables
+  layout.tsx                     Root layout, fonts, and application providers
+  page.tsx                       Home page
+  globals.css                    Global styles and CSS custom-property theme tokens
+  icon.svg                       App icon (SVG)
   ang/[id]/
-    page.tsx                 Ang reader page and static route generation
-    AngStartSentinel.tsx     Previous-Ang navigation at the top of the page
-    AngEndSentinel.tsx       Next-Ang navigation at the end of the page
-    BottomNav.tsx            Scroll-aware bottom navigation
-    not-found.tsx            Out-of-range Ang page
-  bookmarks/page.tsx         Saved verses page
+    page.tsx                     Ang reader page and static route generation
+    AngStartSentinel.tsx         Scroll-to-top → previous Ang detection
+    AngEndSentinel.tsx           Scroll-to-bottom → next Ang auto-advance
+    BottomNav.tsx                Scroll-aware fixed bottom navigation
+    not-found.tsx                Custom 404 for out-of-range Ang numbers
+  bookmarks/page.tsx             Saved verses list with export/import
   search/
-    page.tsx                 Search interface
-    actions.ts               Server action for BaniDB search
+    page.tsx                     Search interface
+    actions.ts                   Server action wrapping BaniDB search
 components/
-  NavigationBar.tsx          Top navigation and reader settings access
-  ReaderControls.tsx         Display, language, size, and theme controls
-  ReaderPrefsProvider.tsx    Local reader preference state
-  BookmarksProvider.tsx      Local bookmark state
-  VerseCard.tsx              Verse display and copy/bookmark actions
-  SwipeContainer.tsx         Touch navigation wrapper
-  SikhSymbols.tsx            Sikh visual symbols used by the reader
+  NavigationBar.tsx              Top navigation bar (scroll-aware, auto-hide)
+  ReaderControls.tsx             Display, language, size, and theme controls
+  ReaderPrefsProvider.tsx        React context for reader preferences (localStorage)
+  BookmarksProvider.tsx          React context for bookmark state (localStorage)
+  VerseCard.tsx                  Single verse display + copy / bookmark actions
+  SwipeContainer.tsx             Touch-swipe wrapper for Ang navigation
+  PageTransition.tsx             Crossfade overlay for page transitions
+  SikhSymbols.tsx                SVG icons (Khanda emblem)
 lib/
-  data.ts                    BaniDB fetching and response mapping
-  types.ts                   Shared TypeScript types and Ang constants
-  useSwipeNavigation.ts      Horizontal swipe detection hook
-
-  ang1.json, ang2.json       Local sample data retained for reference
-public/
-  golden-temple.png          Home page background asset
-  golden-temple-night.png    Home page night background asset
+  data.ts                        BaniDB fetching, response mapping, and search
+  types.ts                       Shared TypeScript types and Ang constants
+  useSwipeNavigation.ts          Horizontal swipe detection hook
+tests/
+  ang-navigation.spec.ts         Playwright end-to-end tests (navigation + theme)
 ```
 
 ## Routes
@@ -156,15 +149,25 @@ public/
 | `/` | Reader home page |
 | `/ang/1` through `/ang/1430` | Individual Ang reader pages |
 | `/search` | Gurbani search |
-| `/bookmarks` | Locally saved verses |
+| `/bookmarks` | Saved verses (localStorage) |
 
-Invalid Ang numbers show the custom not-found page and link back to Ang 1.
+Invalid Ang numbers show a custom not-found page linking back to Ang 1.
+
+## Testing
+
+```bash
+npm run test        # headless Playwright run (uses Chromium)
+npm run test:ui     # Playwright interactive UI mode
+```
+
+Tests verify Ang navigation, next-Ang button behaviour, and theme persistence.
 
 ## Current limitations
 
-- Bookmarks and preferences are browser-local and have no account or sync
-  system.
+- Bookmarks and preferences are browser-local and have no account or sync.
 - Search depends on the BaniDB service and network availability.
+- The Ang data is fetched once at build time and does not update if BaniDB
+  corrects an error (a full rebuild is required).
 
 ## License and attribution
 

@@ -1,3 +1,28 @@
+/**
+ * app/globals.css
+ * ---------------------------------------------------------------------------
+ * Global styles and design tokens for the SGGS Reader.
+ *
+ * Layout:
+ *   - Tailwind CSS v4 (imported below) provides utility classes.
+ *   - All colours, shadows, and typography are defined as CSS custom
+ *     properties (variables) scoped to theme classes: `.theme-light`,
+ *     `.theme-dark`, and `.theme-sepia`. The active theme class is toggled on
+ *     <html> by `ReaderPrefsProvider`, so every `var(--…)` reference re-themes
+ *     instantly without any per-component theming logic.
+ *   - A single accent colour is used throughout (Kesari saffron in light/dark,
+ *     deep crimson in sepia) to keep the design quiet and reverent.
+ *
+ * Key classes:
+ *   - `.font-gurmukhi`  — Gurmukhi font stack (via the `--font-gurmukhi`
+ *     variable loaded from Next's Google Fonts in `app/layout.tsx`).
+ *   - `.font-sans`      — Body/UI font stack.
+ *   - `.glass-nav-pinned` — frosted-glass effect for fixed headers/footers.
+ *   - `.icon-border`    — decorative Ik Onkar accents on page corners.
+ *   - `.page-crossfade-overlay` — full-screen cover used for the crossfade
+ *     transition between Angs (driven by `PageTransition.tsx`).
+ */
+
 @import "tailwindcss";
 
 /* ---------------------------------------------------------------------- */

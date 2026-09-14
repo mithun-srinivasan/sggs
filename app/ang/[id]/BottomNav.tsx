@@ -1,3 +1,17 @@
+/**
+ * app/ang/[id]/BottomNav.tsx
+ * ---------------------------------------------------------------------------
+ * A scroll-aware fixed footer bar that shows the current Ang number and
+ * Previous / Next links.
+ *
+ * Behaviour:
+ *   - Hides as the user scrolls down (distraction-free reading).
+ *   - Reappears immediately on upward scroll (so navigation is always at hand).
+ *   - At the first Ang, the "Previous" link is disabled / visually dimmed.
+ *   - At the last Ang (1430), the "Next" link is disabled / visually dimmed.
+ *   - Each link has a minimum 44×44px touch target per accessibility guidelines.
+ */
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -13,19 +27,27 @@ export default function BottomNav({
   maxAng: number;
   minAng: number;
 }) {
+  /** Whether the bar is currently visible (auto-hidden on downward scroll). */
   const [visible, setVisible] = useState(true);
+
+  /** Previous scroll position — used to determine scroll *direction*. */
   const [prevScrollY, setPrevScrollY] = useState(0);
 
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
+
+      // Near the top of the page → always show the nav bar.
       if (currentScrollY < 40) {
         setVisible(true);
+      // Scrolling down → hide for distraction-free reading.
       } else if (currentScrollY > prevScrollY + 5) {
-        setVisible(false); // scroll down -> hide bar so reader isn't interrupted
+        setVisible(false);
+      // Scrolling up → reveal immediately.
       } else if (currentScrollY < prevScrollY - 5) {
-        setVisible(true); // scroll up -> reveal
+        setVisible(true);
       }
+
       setPrevScrollY(currentScrollY);
     };
 
@@ -48,6 +70,10 @@ export default function BottomNav({
   );
 }
 
+// -------------------------------------------------------------------------
+// NavLink — a single prev/next link or a dimmed placeholder when disabled.
+// -------------------------------------------------------------------------
+
 function NavLink({
   href,
   disabled,
@@ -60,6 +86,8 @@ function NavLink({
   const label = direction === "prev" ? "Previous" : "Next";
   const Icon = direction === "prev" ? ChevronLeft : ChevronRight;
 
+  // When at the boundary, render a non-interactive placeholder with the
+  // same dimensions as the real link to prevent layout shift.
   if (disabled) {
     return (
       <span className="flex min-h-[44px] items-center gap-1 px-3 text-xs font-medium text-[var(--text-faint)] opacity-20">

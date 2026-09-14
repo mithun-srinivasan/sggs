@@ -1,3 +1,13 @@
+/**
+ * app/ang/[id]/not-found.tsx
+ * ---------------------------------------------------------------------------
+ * Custom 404 page shown when a user navigates to an invalid Ang number
+ * (e.g. `/ang/0`, `/ang/1431`, or `/ang/abc`).
+ *
+ * Displays the Gurmukhi text for "Ang Nahi Milia" (Ang not found),
+ * an English explanation, and a link back to Ang 1.
+ */
+
 import Link from "next/link";
 
 export default function NotFound() {

@@ -1,3 +1,18 @@
+/**
+ * app/search/page.tsx
+ * ---------------------------------------------------------------------------
+ * Full-text search interface for Sri Guru Granth Sahib Ji.
+ *
+ * Behaviour:
+ *   - The user types a Gurmukhi or English search term into the input field.
+ *   - Pressing Enter or tapping a quick-search suggestion triggers `runSearch`
+ *     (a server action that calls BaniDB's `/v2/search` endpoint).
+ *   - Results are displayed as a list of links that deep-link directly to the
+ *     matching Ang and verse fragment (`/ang/N#verseId`).
+ *   - While loading, a spinning Loader2 indicator is shown.
+ *   - On empty results, a "no results" message is shown with a spelling hint.
+ */
+
 "use client";
 
 import { useState, type FormEvent } from "react";
@@ -6,14 +21,26 @@ import { ArrowLeft, Search as SearchIcon, Loader2, X } from "lucide-react";
 import type { SearchResult } from "@/lib/types";
 import { runSearch } from "./actions";
 
+/** Pre-filled quick search suggestions shown when no search has been performed yet. */
 const QUICK_SEARCHES = ["ੴ", "ਸਤਿ ਨਾਮੁ", "ਵਾਹਿਗੁਰੂ", "Japji", "Truth", "Guru Nanak"];
 
 export default function SearchPage() {
+  /** The raw text in the search input field. */
   const [query, setQuery] = useState("");
+
+  /** The current set of results (may be empty if no matches were found). */
   const [results, setResults] = useState<SearchResult[]>([]);
+
+  /** Whether a search is currently in progress. */
   const [loading, setLoading] = useState(false);
+
+  /** Whether a search has been submitted (used to decide whether to show the landing UI). */
   const [searched, setSearched] = useState(false);
 
+  /**
+   * Executes a search for the given term.
+   * Updates `results`, `query`, and the `loading`/`searched` flags.
+   */
   const doSearch = async (term: string) => {
     if (!term.trim()) return;
     setQuery(term);
@@ -24,6 +51,7 @@ export default function SearchPage() {
     setLoading(false);
   };
 
+  /** Form submission handler — prevents default and delegates to `doSearch`. */
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     doSearch(query);
@@ -31,6 +59,7 @@ export default function SearchPage() {
 
   return (
     <div className="min-h-screen bg-[var(--bg)] text-[var(--text)] transition-colors">
+      {/* Sticky header with back link and search input */}
       <header className="sticky top-0 z-30 border-b border-[var(--border)] bg-[var(--bg)]">
         <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-3 sm:px-6">
           <Link
@@ -51,6 +80,7 @@ export default function SearchPage() {
                 placeholder="Search Gurbani by Gurmukhi or English..."
                 className="w-full bg-transparent text-sm text-[var(--text)] outline-none placeholder:text-[var(--text-muted)]"
               />
+              {/* Clear button — only visible when the input is non-empty */}
               {query && (
                 <button
                   type="button"
@@ -70,6 +100,7 @@ export default function SearchPage() {
       </header>
 
       <main className="mx-auto max-w-3xl px-5 py-8 sm:px-8">
+        {/* Landing state — shown before any search has been performed */}
         {!searched && (
           <div className="py-8 space-y-6 text-center">
             <div>
@@ -79,6 +110,7 @@ export default function SearchPage() {
               </p>
             </div>
 
+            {/* Quick-search suggestion chips */}
             <div className="flex flex-wrap items-center justify-center gap-2">
               {QUICK_SEARCHES.map((term) => (
                 <button
@@ -93,6 +125,7 @@ export default function SearchPage() {
           </div>
         )}
 
+        {/* Loading spinner */}
         {loading && (
           <div className="flex flex-col items-center justify-center gap-3 py-16 text-[var(--text-muted)]">
             <Loader2 size={22} className="animate-spin text-[var(--accent)]" />
@@ -100,6 +133,7 @@ export default function SearchPage() {
           </div>
         )}
 
+        {/* Empty results */}
         {!loading && searched && results.length === 0 && (
           <div className="py-16 text-center space-y-1">
             <p className="text-sm font-semibold text-[var(--text)]">No results for &ldquo;{query}&rdquo;</p>
@@ -107,6 +141,7 @@ export default function SearchPage() {
           </div>
         )}
 
+        {/* Search results */}
         {!loading && results.length > 0 && (
           <div className="space-y-4">
             <p className="text-xs font-semibold text-[var(--text-muted)]">

@@ -1,15 +1,34 @@
+/**
+ * components/ReaderControls.tsx
+ * ---------------------------------------------------------------------------
+ * The settings popover that appears at the top of the Ang reader.
+ *
+ * Exposes controls for:
+ *   - Transliteration toggle
+ *   - Translation toggle
+ *   - Lareevar reading mode toggle
+ *   - Translation language selection (English / Punjabi)
+ *   - Font-size stepper (80%–160%)
+ *   - Theme picker (Light / Dark / Sepia)
+ *
+ * All state is read from and written to `ReaderPrefsProvider`, which persists
+ * to `localStorage` automatically.
+ */
+
 "use client";
 
 import { Minus, Plus, Sun, Moon, Coffee } from "lucide-react";
 import { useReaderPrefs } from "./ReaderPrefsProvider";
 import type { ThemeMode, TranslationLang } from "@/lib/types";
 
+/** Available themes and their display metadata. */
 const THEMES: { id: ThemeMode; label: string; icon: typeof Sun }[] = [
   { id: "light", label: "Light", icon: Sun },
   { id: "dark", label: "Dark", icon: Moon },
   { id: "sepia", label: "Sepia", icon: Coffee },
 ];
 
+/** Available translation languages. */
 const LANGS: { id: TranslationLang; label: string }[] = [
   { id: "en", label: "English" },
   { id: "pu", label: "Punjabi" },
@@ -22,6 +41,7 @@ export default function ReaderControls() {
     <div className="flex flex-col gap-6 py-2 sm:flex-row sm:items-center sm:justify-between">
       {/* Visibility Toggles */}
       <div className="flex flex-wrap items-center gap-3">
+        {/* Transliteration toggle — shows/hides Roman-script text below each verse. */}
         <button
           onClick={prefs.toggleTransliteration}
           aria-pressed={prefs.showTransliteration}
@@ -34,6 +54,7 @@ export default function ReaderControls() {
           Transliteration
         </button>
 
+        {/* Translation toggle — shows/hides the English or Punjabi translation. */}
         <button
           onClick={prefs.toggleTranslation}
           aria-pressed={prefs.showTranslation}
@@ -46,6 +67,7 @@ export default function ReaderControls() {
           Translation
         </button>
 
+        {/* Lareevar toggle — blends spaces in Gurmukhi for traditional continuous reading. */}
         <button
           onClick={prefs.toggleLareevarMode}
           aria-pressed={prefs.isLareevarMode}
@@ -59,6 +81,7 @@ export default function ReaderControls() {
           Lareevar
         </button>
 
+        {/* Language picker — only visible when translations are enabled. */}
         {prefs.showTranslation && (
           <div className="flex items-center rounded-lg border border-[var(--border)] p-0.5">
             {LANGS.map(({ id, label }) => (
@@ -81,7 +104,7 @@ export default function ReaderControls() {
 
       {/* Font Size & Theme controls */}
       <div className="flex flex-wrap items-center gap-6">
-        {/* Obvious, accessible Font Size Stepper */}
+        {/* Font-size stepper: each tap adjusts by ±10%, clamped to 80%–160%. */}
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold text-[var(--text-muted)]">Text Size</span>
           <div className="flex items-center rounded-lg border border-[var(--border)]">
@@ -107,7 +130,7 @@ export default function ReaderControls() {
           </div>
         </div>
 
-        {/* Theme Picker */}
+        {/* Theme picker — cycles between Light, Dark, and Sepia palettes. */}
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold text-[var(--text-muted)]">Theme</span>
           <div className="flex items-center rounded-lg border border-[var(--border)]">
