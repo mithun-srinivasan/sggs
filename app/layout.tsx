@@ -3,6 +3,7 @@ import { Noto_Sans_Gurmukhi, Inter } from "next/font/google";
 import { ReaderPrefsProvider } from "@/components/ReaderPrefsProvider";
 import { BookmarksProvider } from "@/components/BookmarksProvider";
 import PageTransition from "@/components/PageTransition";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 const gurmukhi = Noto_Sans_Gurmukhi({
@@ -34,6 +35,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             {children}
           </BookmarksProvider>
         </ReaderPrefsProvider>
+        <Analytics />
       </body>
     </html>
   );
