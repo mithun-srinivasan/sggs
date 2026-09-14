@@ -24,11 +24,10 @@ import type { Metadata } from "next";
 import { getAng, clampAng } from "@/lib/data";
 import { MAX_ANG, MIN_ANG } from "@/lib/types";
 import NavigationBar from "@/components/NavigationBar";
-import VerseCard from "@/components/VerseCard";
 import SwipeContainer from "@/components/SwipeContainer";
 import BottomNav from "./BottomNav";
 import AngStartSentinel from "./AngStartSentinel";
-import AngEndSentinel from "./AngEndSentinel";
+import ClientAngReader from "./ClientAngReader";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -96,15 +95,12 @@ export default async function AngPage({ params }: PageProps) {
             </p>
           </header>
 
-          {/* Ordered list of verses */}
-          <section aria-label={`Ang ${angNumber} verses`}>
-            {ang.lines.map((line) => (
-              <VerseCard key={line.id} line={line} angNumber={angNumber} />
-            ))}
-          </section>
-
-          {/* Scroll-to-bottom sentinel — auto-advances to next Ang */}
-          <AngEndSentinel angNumber={angNumber} maxAng={MAX_ANG} />
+          {/* Verse list — rendered and chained by the continuous-mode reader */}
+          <ClientAngReader
+            angNumber={angNumber}
+            initialLines={ang.lines}
+            maxAng={MAX_ANG}
+          />
         </main>
       </SwipeContainer>
 

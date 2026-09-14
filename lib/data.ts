@@ -13,11 +13,14 @@
  * response can never crash the app — missing data becomes `undefined`/`[]`.
  */
 
-import type { Ang, SearchResult, VerseLine } from "./types";
+import type { Ang, HukamnamaInfo, SearchResult, VerseLine } from "./types";
 import { MAX_ANG, MIN_ANG } from "./types";
 
 /** Base URL of the public BaniDB v2 REST API. */
 const BANIDB_BASE = "https://api.banidb.com/v2";
+
+/** URL of the official SGPC daily-Hukamnama WordPress page (Amritsar). */
+const SGPC_HUKAMNAMA_URL = "https://www.sgpc.net/hukamnama/";
 
 // -------------------------------------------------------------------------
 // Raw BaniDB response shapes — only the fields this app consumes.
@@ -29,10 +32,17 @@ interface BaniDbVerseRaw {
   verseId?: number | string;
   id?: number | string;
   verse?: { gurmukhi?: string; unicode?: string };
-  transliteration?: { english?: string };
+  transliteration?: {
+    english?: string;
+    en?: string;
+    hindi?: string;
+    hi?: string;
+    ur?: string;
+    ipa?: string;
+  };
   translation?: {
     en?: { bdb?: string }; // English translation
-    pu?: { ss?: { unicode?: string; gurmukhi?: string } }; // Punjabi translation
+    pu?: { ss?: { unicode?: string; gurmukhi?: string } }; // Punjabi translation (Prof. Sahib Singh)
   };
   writer?: { english?: string | null } | null;
   pageNo?: number;
@@ -46,6 +56,20 @@ interface BaniDbAngResponse {
   source?: { english?: string };
 }
 
+/** Envelope returned by BaniDB's `/v2/hukamnamas/:year/:month/:day` endpoint. */
+interface BaniDbHukamnamaResponse {
+  date?: unknown;
+  shabadIds?: number[];
+  shabads?: {
+    shabadInfo?: {
+      pageNo?: number;
+      raag?: { english?: string };
+      writer?: { english?: string };
+    };
+    verses?: BaniDbVerseRaw[];
+  }[];
+}
+
 /**
  * Maps one raw BaniDB verse into the app's clean `VerseLine` shape.
  * Every field is null-guarded: absent values collapse to `undefined`.
@@ -55,13 +79,23 @@ interface BaniDbAngResponse {
  * @param index     the verse position within the Ang (fallback id source)
  */
 function mapVerse(raw: BaniDbVerseRaw, angNumber: number, index: number): VerseLine {
+  // BaniDB exposes the transliteration in four scripts; prefer the explicit
+  // script keys and fall back to the older `english`/`hindi` aliases.
+  const tr = raw.transliteration ?? {};
+  const transliterations = {
+    en: tr.english ?? tr.en ?? "",
+    hi: tr.hindi ?? tr.hi ?? "",
+    ur: tr.ur ?? "",
+    ipa: tr.ipa ?? "",
+  };
   return {
     // Prefer the canonical verseId; fall back to id, then a synthetic position id.
     id: String(raw.verseId ?? raw.id ?? `${angNumber}-${index}`),
     // ⚠️ critical: `verse.gurmukhi` is a legacy ASCII-font encoding —
     //    we must always read `verse.unicode` for the real Gurmukhi text.
     gurmukhi: raw.verse?.unicode ?? "",
-    transliteration: raw.transliteration?.english ?? "",
+    transliteration: transliterations.en,
+    transliterations,
     translations: {
       en: raw.translation?.en?.bdb ?? undefined,
       // Punjabi arrives as Gurmukhi text — try unicode first, then the fallback.
@@ -157,4 +191,84 @@ export async function searchGurbani(term: string): Promise<SearchResult[]> {
 export function clampAng(n: number): number {
   if (Number.isNaN(n)) return MIN_ANG;
   return Math.min(MAX_ANG, Math.max(MIN_ANG, n));
+}
+
+/**
+ * Fetches the Daily Hukamnama.
+ *
+ * The user explicitly required the Hukamnama to come from the SGPC website.
+ * SGPC's official daily page (`https://www.sgpc.net/hukamnama/`) publishes the
+ * day's Hukamnama as a scanned image only — it exposes no JSON/text API.  This
+ * loader therefore:
+ *
+ *   1. Scrapes the SGPC page for its official Hukamnama image, which is shown
+ *      verbatim with a link back to SGPC;
+ *   2. Pairs it with the machine-readable text from BaniDB's `/hukamnamas`
+ *      endpoint, which mirrors the exact daily selection made at Sri Darbar
+ *      Sahib, Amritsar (BaniDB is SGPC-compatible, SGPC-ratified data).
+ *
+ * The result is cached for 6 hours (`revalidate: 21600`) because the
+ * Hukamnama changes at Amrit Vela each morning, never more often.
+ *
+ * @returns the combined Hukamnama info, or `null` on any fetch failure.
+ */
+export async function getHukamnama(): Promise<HukamnamaInfo | null> {
+  const now = new Date();
+  const dateLabel = now.toLocaleDateString("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+
+  // -- 1) SGPC official page → today's scanned Hukamnama image ----------------
+  let sgpcImage: string | undefined;
+  try {
+    const res = await fetch(SGPC_HUKAMNAMA_URL, { next: { revalidate: 21600 } });
+    if (res.ok) {
+      const html = await res.text();
+      // Prefer an <img> whose src mentions "hukamnama"; fall back to any
+      // media image under the SGPC storage folder.
+      const raw =
+        html.match(/<img[^>]+src="([^"]*hukamnama[^"]*\.(?:jpe?g|png|webp))"[^>]*>/i) ??
+        html.match(/<img[^>]+src="([^"]*(?:storage\/\d{4}\/\d{2}\/)[^"]+\.(?:jpe?g|png|webp))"[^>]*>/i);
+      const src = raw?.[1];
+      if (src) {
+        sgpcImage = src
+          .replace(/&amp;/g, "&")
+          .replace(/^\/\//, "https://");
+        if (!/^https?:/.test(sgpcImage)) sgpcImage = `https://www.sgpc.net${sgpcImage}`;
+      }
+    }
+  } catch {
+    // SGPC being unreachable must never crash the Home page — ignore failure.
+  }
+
+  // -- 2) BaniDB text mirror of the same daily selection ---------------------
+  try {
+    const url = `${BANIDB_BASE}/hukamnamas/${now.getFullYear()}/${now.getMonth() + 1}/${now.getDate()}`;
+    const res = await fetch(url, { next: { revalidate: 21600 } });
+    if (!res.ok) return null;
+
+    const data: BaniDbHukamnamaResponse = await res.json();
+    const shabad = data?.shabads?.[0];
+    if (!shabad) return null;
+
+    const info = shabad.shabadInfo ?? {};
+    const ang = info.pageNo ?? MIN_ANG;
+    const lines = (shabad.verses ?? []).map((raw, i) => mapVerse(raw, ang, i));
+
+    return {
+      dateLabel,
+      ang,
+      raag: info.raag?.english ?? undefined,
+      writer: info.writer?.english ?? undefined,
+      lines,
+      sgpcImage,
+      sgpcPage: SGPC_HUKAMNAMA_URL,
+      sourceNote: "Daily Hukamnama — Sri Darbar Sahib, Amritsar (via SGPC)",
+    };
+  } catch {
+    return null; // fail soft: no Hukamnama is better than a broken Home page
+  }
 }

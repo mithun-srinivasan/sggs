@@ -33,6 +33,12 @@ interface BookmarksContextValue {
   isBookmarked: (verseId: string) => boolean;
   toggleBookmark: (b: Omit<Bookmark, "savedAt">) => void;
   removeBookmark: (verseId: string) => void;
+  /** Adds a tag to a bookmark (deduplicates; preserves order). */
+  addTag: (verseId: string, tag: string) => void;
+  /** Removes a tag from a bookmark. */
+  removeTag: (verseId: string, tag: string) => void;
+  /** All unique tags in use across bookmarks, sorted alphabetically. */
+  allTags: string[];
   exportBookmarks: () => void;
   importBookmarks: (json: string) => boolean;
 }
@@ -135,6 +141,39 @@ export function BookmarksProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  /** Adds (deduplicated) a tag to the given bookmark. */
+  const addTag = useCallback((verseId: string, tag: string) => {
+    const clean = tag.trim();
+    if (!clean) return;
+    setBookmarks((prev) =>
+      prev.map((b) =>
+        b.verseId === verseId
+          ? { ...b, tags: [...new Set([...(b.tags ?? []), clean])] }
+          : b
+      )
+    );
+  }, []);
+
+  /** Removes a tag from the given bookmark. */
+  const removeTag = useCallback((verseId: string, tag: string) => {
+    setBookmarks((prev) =>
+      prev.map((b) =>
+        b.verseId === verseId
+          ? { ...b, tags: (b.tags ?? []).filter((t) => t !== tag) }
+          : b
+      )
+    );
+  }, []);
+
+  /** All unique tags across bookmarks, alphabetically sorted. */
+  const allTags = (() => {
+    const tagSet = new Set<string>();
+    for (const b of bookmarks) {
+      for (const t of b.tags ?? []) tagSet.add(t);
+    }
+    return [...tagSet].sort((a, b) => a.localeCompare(b));
+  })();
+
   // -- JSON export / import --------------------------------------------------
 
   /**
@@ -198,7 +237,17 @@ export function BookmarksProvider({ children }: { children: ReactNode }) {
 
   return (
     <BookmarksContext.Provider
-      value={{ bookmarks, isBookmarked, toggleBookmark, removeBookmark, exportBookmarks, importBookmarks }}
+      value={{
+        bookmarks,
+        isBookmarked,
+        toggleBookmark,
+        removeBookmark,
+        addTag,
+        removeTag,
+        allTags,
+        exportBookmarks,
+        importBookmarks,
+      }}
     >
       {children}
     </BookmarksContext.Provider>

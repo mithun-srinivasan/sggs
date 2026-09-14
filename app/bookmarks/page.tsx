@@ -7,8 +7,11 @@
  *   - Each bookmark shows its Ang number, Gurmukhi snippet, and saved date.
  *   - Tapping a bookmark deep-links to `/ang/N#verseId` in the reader.
  *   - A remove button (BookmarkX icon) deletes the bookmark.
- *   - Export: downloads all bookmarks as a timestamped JSON file.
- *   - Import: accepts a JSON file, validates its shape, and merges new verses.
+ *   - **Folders/tags (feature 11):** assign tags to any bookmark, filter the
+ *     list by tag, and see a tag chip row at the top.
+ *   - **Print (feature 15):** `print` button renders a clean printed list;
+ *     `@media print` CSS hides the interactive chrome.
+ *   - Export / Import bookmarks as timestamped JSON.
  *   - A theme toggle cycles through Light → Dark → Sepia (3-way cycle).
  *
  * Data is managed entirely by `BookmarksProvider` (localStorage-backed).
@@ -28,12 +31,16 @@ import {
   Coffee,
   Download,
   Upload,
+  Printer,
+  Tag,
+  X,
 } from "lucide-react";
 import { useBookmarks } from "@/components/BookmarksProvider";
 import { useReaderPrefs } from "@/components/ReaderPrefsProvider";
 
 export default function BookmarksPage() {
-  const { bookmarks, removeBookmark, exportBookmarks, importBookmarks } = useBookmarks();
+  const { bookmarks, removeBookmark, addTag, removeTag, allTags, exportBookmarks, importBookmarks } =
+    useBookmarks();
   const prefs = useReaderPrefs();
 
   /** Hidden file input ref — clicked programmatically via the Upload button. */
@@ -42,11 +49,26 @@ export default function BookmarksPage() {
   /** Import feedback state: "idle" → "success"/"error" → "idle" (after 3s). */
   const [importStatus, setImportStatus] = useState<"idle" | "success" | "error">("idle");
 
+  /** Currently active tag filter (`null` = show everything). */
+  const [activeTag, setActiveTag] = useState<string | null>(null);
+
+  /** Which bookmark's tag editor is open. */
+  const [tagEditorId, setTagEditorId] = useState<string | null>(null);
+
+  /** Per-editor draft tag text. */
+  const [tagDraft, setTagDraft] = useState("");
+
+  /** Unique tags in use (already sorted by the provider). */
+  const tags = allTags;
+
+  /** Bookmarks after applying the tag filter. */
+  const visible = activeTag
+    ? bookmarks.filter((b) => (b.tags ?? []).includes(activeTag))
+    : bookmarks;
+
   // -- Export handler: triggers the BookmarksProvider's download --------------
 
-  const handleExport = () => {
-    exportBookmarks();
-  };
+  const handleExport = () => exportBookmarks();
 
   // -- Import handler: reads a user-selected JSON file ------------------------
 
@@ -67,6 +89,12 @@ export default function BookmarksPage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  /** Commits the draft tag to the bookmark whose editor is open. */
+  const commitTag = (verseId: string) => {
+    addTag(verseId, tagDraft);
+    setTagDraft("");
+  };
+
   // -- Theme cycle: Light → Dark → Sepia → Light ----------------------------
 
   const nextTheme = prefs.theme === "light" ? "dark" : prefs.theme === "dark" ? "sepia" : "light";
@@ -75,7 +103,7 @@ export default function BookmarksPage() {
   return (
     <div className="min-h-screen bg-[var(--bg)] text-[var(--text)] transition-colors">
       {/* Sticky header with back link, title, export/import, and theme toggle */}
-      <header className="sticky top-0 z-30 border-b bg-[var(--bg)]">
+      <header className="print-hide sticky top-0 z-30 border-b bg-[var(--bg)]">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3 sm:px-6">
           <div className="flex items-center gap-3">
             <Link
@@ -90,6 +118,16 @@ export default function BookmarksPage() {
             </h1>
           </div>
           <div className="flex items-center gap-2">
+            {/* Print button — opens the browser print dialog */}
+            <button
+              onClick={() => window.print()}
+              aria-label="Print bookmarks"
+              title="Print bookmarks"
+              className="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--border)] bg-transparent text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--surface-hover)] transition"
+            >
+              <Printer size={16} />
+            </button>
+
             {/* Export button — downloads all bookmarks as a JSON file */}
             <button
               onClick={handleExport}
@@ -128,6 +166,35 @@ export default function BookmarksPage() {
             </button>
           </div>
         </div>
+
+        {/* Tag filter row (feature 11) */}
+        {tags.length > 0 && (
+          <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-2 px-4 pb-3 sm:px-6">
+            <button
+              onClick={() => setActiveTag(null)}
+              className={`rounded-full px-3 py-1 text-[11px] font-semibold transition ${
+                activeTag === null
+                  ? "bg-[var(--accent)] text-white"
+                  : "border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]"
+              }`}
+            >
+              All
+            </button>
+            {tags.map((t) => (
+              <button
+                key={t}
+                onClick={() => setActiveTag((cur) => (cur === t ? null : t))}
+                className={`rounded-full px-3 py-1 text-[11px] font-semibold transition ${
+                  activeTag === t
+                    ? "bg-[var(--accent)] text-white"
+                    : "border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]"
+                }`}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+        )}
       </header>
 
       <main className="mx-auto max-w-3xl px-5 py-8 sm:px-8">
@@ -163,29 +230,89 @@ export default function BookmarksPage() {
               <ArrowRight size={14} />
             </Link>
           </div>
+        ) : visible.length === 0 ? (
+          <p className="py-16 text-center text-xs text-[var(--text-muted)]">
+            No bookmarks tagged “{activeTag}”.
+          </p>
         ) : (
           /* Bookmarks list */
-          <ul className="divide-y divide-[var(--border)] border-y border-[var(--border)] space-y-4">
-            {bookmarks.map((b) => (
-              <li key={b.verseId} className="flex items-center justify-between gap-4 py-4">
-                {/* Tapping navigates directly to the verse in the reader */}
-                <Link
-                  href={`/ang/${b.angNumber}#${b.verseId}`}
-                  className="min-w-0 flex-1 transition hover:opacity-80"
-                >
-                  <span className="text-xs font-bold text-[var(--accent)]">
-                    Ang {b.angNumber} · {new Date(b.savedAt).toLocaleDateString()}
-                  </span>
-                  <p className="font-gurmukhi text-lg font-semibold leading-relaxed text-[var(--text)] truncate mt-1">
-                    {b.gurmukhiSnippet}
-                  </p>
-                </Link>
+          <ul className="divide-y divide-[var(--border)] border-y border-[var(--border)]">
+            {visible.map((b) => (
+              <li key={b.verseId} className="flex items-start justify-between gap-4 py-4">
+                <div className="min-w-0 flex-1">
+                  {/* Tapping navigates directly to the verse in the reader */}
+                  <Link
+                    href={`/ang/${b.angNumber}#${b.verseId}`}
+                    className="block transition hover:opacity-80"
+                  >
+                    <span className="text-xs font-bold text-[var(--accent)]">
+                      Ang {b.angNumber} · {new Date(b.savedAt).toLocaleDateString()}
+                    </span>
+                    <p className="font-gurmukhi text-lg font-semibold leading-relaxed text-[var(--text)] truncate mt-1">
+                      {b.gurmukhiSnippet}
+                    </p>
+                  </Link>
+
+                  {/* Tag chips + editor (hidden when printing) */}
+                  <div className="print-hide mt-2 flex flex-wrap items-center gap-1.5">
+                    {(b.tags ?? []).map((t) => (
+                      <span
+                        key={t}
+                        className="flex items-center gap-1 rounded-full bg-[var(--accent-light)] px-2 py-0.5 text-[10px] font-semibold text-[var(--accent)]"
+                      >
+                        {t}
+                        <button
+                          onClick={() => removeTag(b.verseId, t)}
+                          aria-label={`Remove tag ${t}`}
+                          className="hover:text-[var(--text)]"
+                        >
+                          <X size={10} />
+                        </button>
+                      </span>
+                    ))}
+
+                    {tagEditorId === b.verseId ? (
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          commitTag(b.verseId);
+                        }}
+                        className="flex items-center gap-1"
+                      >
+                        <input
+                          value={tagDraft}
+                          onChange={(e) => setTagDraft(e.target.value)}
+                          placeholder="Add tag…"
+                          autoFocus
+                          className="h-6 w-24 rounded border border-[var(--border)] bg-[var(--bg)] px-1.5 text-[10px] text-[var(--text)] outline-none focus:border-[var(--accent)]"
+                        />
+                        <button
+                          type="submit"
+                          className="text-[10px] font-semibold text-[var(--accent)]"
+                        >
+                          Add
+                        </button>
+                      </form>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setTagEditorId(b.verseId);
+                          setTagDraft("");
+                        }}
+                        className="flex items-center gap-1 rounded-full border border-dashed border-[var(--border)] px-2 py-0.5 text-[10px] font-semibold text-[var(--text-muted)] hover:text-[var(--accent)] transition"
+                      >
+                        <Tag size={10} />
+                        Tag
+                      </button>
+                    )}
+                  </div>
+                </div>
 
                 <button
                   onClick={() => removeBookmark(b.verseId)}
                   aria-label="Remove bookmark"
                   title="Remove Bookmark"
-                  className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--border)] bg-transparent text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--surface-hover)] transition"
+                  className="print-hide flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[var(--border)] bg-transparent text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--surface-hover)] transition"
                 >
                   <BookmarkX size={16} />
                 </button>

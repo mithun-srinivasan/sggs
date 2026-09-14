@@ -23,6 +23,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useReaderPrefs } from "@/components/ReaderPrefsProvider";
+import HukamnamaCard from "@/components/HukamnamaCard";
+import ReadingJourney from "@/components/ReadingJourney";
+import GurpurabCalendar from "@/components/GurpurabCalendar";
 import {
   BookOpen,
   Search,
@@ -37,6 +40,7 @@ import {
   Sun,
   Moon,
   Coffee,
+  GraduationCap,
 } from "lucide-react";
 import { MAX_ANG, MIN_ANG } from "@/lib/types";
 
@@ -311,6 +315,16 @@ export default function HomePage() {
                 <Bookmark size={18} />
               </Link>
 
+              {/* Learn Gurmukhi */}
+              <Link
+                href="/learn"
+                aria-label="Learn Gurmukhi"
+                title="Learn Gurmukhi"
+                className="flex h-10 w-10 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:text-[var(--text)] hover:bg-[var(--surface-hover)] active:scale-[0.97]"
+              >
+                <GraduationCap size={18} />
+              </Link>
+
               {/* Theme cycle: light → dark → sepia → light */}
               <button
                 onClick={() => prefs.setTheme(nextTheme)}
@@ -372,6 +386,16 @@ export default function HomePage() {
               </button>
             </div>
           </section>
+
+          {/* -------------------------------------------------------------- */}
+          {/* Daily Hukamnama — sourced from the official SGPC website        */}
+          {/* -------------------------------------------------------------- */}
+          <HukamnamaCard />
+
+          {/* -------------------------------------------------------------- */}
+          {/* Reading journey — progress, streak, history, Sehaj Paath plan   */}
+          {/* -------------------------------------------------------------- */}
+          <ReadingJourney />
 
           {/* -------------------------------------------------------------- */}
           {/* Quick Ang Navigation — slider + quick-jump markers + number input */}
@@ -517,6 +541,36 @@ export default function HomePage() {
               >
                 <span>Read in Context (Ang {currentVerse.ang})</span>
                 <ArrowRight size={13} />
+              </Link>
+            </div>
+          </section>
+
+          {/* -------------------------------------------------------------- */}
+          {/* Upcoming Gurpurabs — Nanakshahi holy-day calendar                */}
+          {/* -------------------------------------------------------------- */}
+          <GurpurabCalendar />
+
+          {/* -------------------------------------------------------------- */}
+          {/* Learn Gurmukhi CTA                                              */}
+          {/* -------------------------------------------------------------- */}
+          <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)]/80 backdrop-blur-md p-6 sm:p-8 shadow-[var(--shadow-subtle)]">
+            <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+              <div className="flex items-start gap-3">
+                <GraduationCap size={24} className="mt-0.5 shrink-0 text-[var(--accent)]" />
+                <div>
+                  <h3 className="text-base font-bold text-[var(--text)]">Learn Gurmukhi</h3>
+                  <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+                    Practise the 35 primary akhars with a quick multiple-choice drill, then read the
+                    scripture directly.
+                  </p>
+                </div>
+              </div>
+              <Link
+                href="/learn"
+                className="flex min-h-[44px] shrink-0 items-center gap-2 rounded-xl bg-[var(--accent)] px-5 py-2.5 text-xs font-semibold text-white transition hover:opacity-90 active:scale-[0.97]"
+              >
+                <span>Start Practising</span>
+                <ArrowRight size={14} />
               </Link>
             </div>
           </section>

@@ -3,25 +3,61 @@
  * ---------------------------------------------------------------------------
  * Renders a single verse (tuk) from Sri Guru Granth Sahib Ji.
  *
- * Each card shows:
- *   1. The primary Gurmukhi text (dominant size)
- *   2. Optional transliteration
- *   3. Optional translation (English or Punjabi, per user preference)
- *   4. Footer with writer metadata + line number
- *   5. Hover-reveal action buttons: Copy to clipboard / Toggle bookmark
+ * Beyond the base layers (Gurmukhi → transliteration → translation → footer
+ * with copy / bookmark actions), this card powers the following reader
+ * features (see `lib/types.ts` for each flag):
  *
- * The verse's font size, transliteration visibility, translation visibility,
- * translation language, and Lareevar mode are all driven by the reader
- * preferences context.
+ *   3.  Focus mode — transliteration/translation/actions carry the
+ *       `verse-extra` class, hidden when `html[data-focus-mode=on]`.
+ *   6.  Memorisation mode — Gurmukhi is blurred; "Tap to reveal" clears it.
+ *  12.  Highlights — one of four colours, toggled from the footer.
+ *  10.  Verse notes — an expandable textarea saved via `NotesProvider`.
+ *  14.  Share — renders the verse to a canvas and downloads a share card PNG.
+ *  17.  (Hukamnama uses this same component on the Home page.)
+ *  18.  Parallel translations — English + Punjabi side-by-side.
+ *  19.  Tap-to-transliterate — tap a Gurmukhi word to see its Romanisation.
+ *  21.  Kanji / commentary — a labelled Punjabi commentary block (Prof.
+ *       Sahib Singh, aka Guru Granth Darpan) under the translation.
+ *  24.  Transliteration script — English / Hindi / Urdu / IPA variants.
  */
 
 "use client";
 
 import { useState } from "react";
-import { Bookmark, BookmarkCheck, Copy, Check } from "lucide-react";
-import type { VerseLine } from "@/lib/types";
+import {
+  Bookmark,
+  BookmarkCheck,
+  Copy,
+  Check,
+  Share2,
+  Highlighter,
+  StickyNote,
+  X,
+} from "lucide-react";
+import type { HighlightColor, VerseLine } from "@/lib/types";
 import { useReaderPrefs } from "./ReaderPrefsProvider";
 import { useBookmarks } from "./BookmarksProvider";
+import { useHighlights } from "./HighlightsProvider";
+import { useVerseNotes } from "./NotesProvider";
+
+/** The four highlight colours → translucent background tints. */
+const HIGHLIGHT_TINTS: Record<HighlightColor, string> = {
+  saffron: "rgba(245, 158, 11, 0.14)",
+  green: "rgba(34, 197, 94, 0.13)",
+  blue: "rgba(59, 130, 246, 0.14)",
+  rose: "rgba(244, 63, 94, 0.13)",
+};
+
+/** Display labels for the highlight colour picker buttons. */
+const HIGHLIGHT_LABELS: Record<HighlightColor, string> = {
+  saffron: "Saffron",
+  green: "Green",
+  blue: "Blue",
+  rose: "Rose",
+};
+
+/** Fallback font stack used when drawing the share card onto a canvas. */
+const SHARE_FONT_STACK = `"Noto Sans Gurmukhi", "Nirmala UI", "Raavi", sans-serif`;
 
 export default function VerseCard({
   line,
@@ -32,74 +68,322 @@ export default function VerseCard({
 }) {
   const prefs = useReaderPrefs();
   const { isBookmarked, toggleBookmark } = useBookmarks();
+  const { getHighlight, toggleHighlight } = useHighlights();
+  const { getNote, setNote, removeNote } = useVerseNotes();
 
-  /** Whether the "Copied!" confirmation is currently visible (resets after 2s). */
+  /** "Copied!" confirmation flag (resets after 2s). */
   const [copied, setCopied] = useState(false);
+  /** Whether the note editor is expanded for this verse. */
+  const [notesOpen, setNotesOpen] = useState(false);
+  /** Whether the highlight colour picker is open. */
+  const [highlightOpen, setHighlightOpen] = useState(false);
+  /** Memorisation reveal state — `true` once the user taps to unblur. */
+  const [revealed, setRevealed] = useState(false);
+  /** Tap-to-transliterate: index of the currently revealed word (`null` = none). */
+  const [wordRevealed, setWordRevealed] = useState<number | null>(null);
+  /** "Shared!" confirmation flag. */
+  const [shared, setShared] = useState(false);
 
-  /** O(1) check via the Set-backed hook. */
   const saved = isBookmarked(line.id);
+  const highlight = getHighlight(line.id);
+  const note = getNote(line.id);
 
-  /** The active translation for the user's chosen language (may be undefined). */
-  const translation = line.translations[prefs.translationLang];
+  // -- Transliteration ------------------------------------------------------------------
 
-  /** In Lareevar mode all whitespace is stripped to form a continuous text flow. */
-  const gurmukhiText = prefs.isLareevarMode
-    ? line.gurmukhi.replace(/\s+/g, "")
-    : line.gurmukhi;
+  /** The transliteration for the user's chosen script (falls back to English). */
+  const translit =
+    line.transliterations[prefs.translitStyle] || line.transliteration;
+
+  /** Word-aligned pairs [gurmukhiWord, translitWord]; empty when lengths differ. */
+  const wordPairs = (() => {
+    const gk = line.gurmukhi.split(/\s+/).filter(Boolean);
+    const tr = translit.split(/\s+/).filter(Boolean);
+    return gk.length === tr.length ? gk.map((g, i) => [g, tr[i]]) : [];
+  })();
+
+  // -- Translations ---------------------------------------------------------------------
 
   /**
-   * Copies the verse to the clipboard in a multi-line format:
-   *   Gurmukhi
-   *   Transliteration (if present)
-   *   Translation (if present)
-   *   — Sri Guru Granth Sahib Ji (Ang N)
+   * Primary translation for the preferred language (used in the normal,
+   * non-parallel layout).  Parallel mode shows both columns regardless.
    */
+  const primaryTranslation = line.translations[prefs.translationLang];
+  const punjabiTranslation = line.translations["pu"];
+
+  /** Japanese-style "Kanji" here refers to the classic Sikh commentary: the
+   * Punjabi translation by Prof. Sahib Singh (Guru Granth Darpan).  BaniDB
+   * serves this exactly through the `pu` translation key. */
+  const kanji = punjabiTranslation;
+
+  // -- Gurmukhi display -----------------------------------------------------------------
+
+  /** Lareevar blends word spacing; never applied in word-tap or memorisation mode. */
+  const isLareevar =
+    prefs.isLareevarMode && !prefs.isTapToTranslit && !prefs.isMemorizationMode;
+  const gurmukhiText = isLareevar ? line.gurmukhi.replace(/\s+/g, "") : line.gurmukhi;
+
+  /** True when the Gurmukhi should currently appear blurred (memorisation). */
+  const hiddenMemorize = prefs.isMemorizationMode && !revealed;
+
+  // -- Copy -----------------------------------------------------------------------------
+
   const handleCopy = async () => {
     try {
       const textToCopy = [
         line.gurmukhi,
-        line.transliteration ? line.transliteration : "",
-        translation ? translation : "",
+        translit ? translit : "",
+        primaryTranslation ? primaryTranslation : "",
         `— Sri Guru Granth Sahib Ji (Ang ${angNumber})`,
       ]
-        .filter(Boolean) // drop empty lines
+        .filter(Boolean)
         .join("\n");
       await navigator.clipboard.writeText(textToCopy);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Clipboard access is not available in all browsers / contexts;
-      // the error is silently ignored since the action is non-critical.
+      // Non-critical: clipboard may be blocked in some contexts.
+    }
+  };
+
+  // -- Share as card image (feature 14) -------------------------------------------------
+
+  /** Renders the verse onto a 1080×1350 canvas and triggers a PNG download. */
+  const handleShare = () => {
+    try {
+      const canvas = document.createElement("canvas");
+      canvas.width = 1080;
+      canvas.height = 1350;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      // Dark, quiet backdrop.
+      ctx.fillStyle = "#0B0C12";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Saffron Khanda-inspired divider.
+      ctx.fillStyle = "#F59E0B";
+      ctx.fillRect(120, 150, canvas.width - 240, 4);
+
+      // Gurmukhi — two wrapped lines, centred, generous size.
+      ctx.fillStyle = "#FAFAFA";
+      ctx.font = `600 42px ${SHARE_FONT_STACK}`;
+      ctx.textAlign = "center";
+      const gurmukhiString = line.gurmukhi;
+      const words = gurmukhiString.split(/\s+/);
+      const usable = canvas.width - 240;
+      const lines: string[] = [];
+      let current = "";
+      for (const w of words) {
+        const test = current ? `${current} ${w}` : w;
+        if (ctx.measureText(test).width <= usable) {
+          current = test;
+        } else {
+          if (current) lines.push(current);
+          current = w;
+        }
+      }
+      if (current) lines.push(current);
+
+      let y = 320;
+      for (const l of lines.slice(0, 3)) {
+        ctx.fillText(l, canvas.width / 2, y);
+        y += 110;
+      }
+
+      // Transliteration.
+      ctx.fillStyle = "#94A3B8";
+      ctx.textAlign = "center";
+      ctx.font = `400 32px "Inter", sans-serif`;
+      ctx.fillText(translit || line.transliteration, canvas.width / 2, y + 60);
+
+      // Translation.
+      const translation = primaryTranslation || punjabiTranslation;
+      if (translation) {
+        ctx.fillStyle = "#E2E8F0";
+        ctx.font = `400 30px "Inter", sans-serif`;
+        const tlWords = translation.split(/\s+/);
+        let tlCurrent = "";
+        const tlLines: string[] = [];
+        for (const w of tlWords) {
+          const test = tlCurrent ? `${tlCurrent} ${w}` : w;
+          if (ctx.measureText(test).width <= usable) {
+            tlCurrent = test;
+          } else {
+            if (tlCurrent) tlLines.push(tlCurrent);
+            tlCurrent = w;
+          }
+        }
+        if (tlCurrent) tlLines.push(tlCurrent);
+        let ty = y + 160;
+        for (const l of tlLines.slice(0, 3)) {
+          ctx.fillText(l, canvas.width / 2, ty);
+          ty += 52;
+        }
+      }
+
+      // Footer attribution.
+      ctx.fillStyle = "#64748B";
+      ctx.font = `400 26px "Inter", sans-serif`;
+      ctx.fillText(`Sri Guru Granth Sahib Ji · Ang ${angNumber}`, canvas.width / 2, 1240);
+
+      // Download.
+      const url = canvas.toDataURL("image/png");
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `sggs-ang-${angNumber}-verse-${line.id}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
+      setShared(true);
+      setTimeout(() => setShared(false), 2000);
+    } catch {
+      // Canvas rendering is best-effort; failure is silently ignored.
     }
   };
 
   return (
     <article
-      className="group scroll-mt-20 rounded-xl border-b border-[var(--border-subtle)] p-4 transition-colors hover:bg-[var(--surface-hover)] sm:p-6"
-      style={{ fontSize: `${prefs.fontScale}rem` }}
+      className={`group scroll-mt-20 rounded-xl border-b border-[var(--border-subtle)] p-4 transition-colors sm:p-6 ${
+        highlight ? "hover:bg-[var(--surface-hover)]" : "hover:bg-[var(--surface-hover)]"
+      }`}
+      style={{
+        fontSize: `${prefs.fontScale}rem`,
+        ...(highlight ? { backgroundColor: HIGHLIGHT_TINTS[highlight] } : {}),
+      }}
       id={line.id}
     >
-      {/* Primary Scripture: Gurmukhi — dominant size, solid dignified contrast */}
+      {/* Primary Scripture: Gurmukhi */}
       <p
         dir="auto"
         lang="pa"
-        className="font-gurmukhi text-[1.8em] font-medium leading-[1.95] text-[var(--text)] tracking-normal selection:bg-[var(--accent-light)]"
+        onClick={() => {
+          if (hiddenMemorize) setRevealed(true);
+          if (prefs.isTapToTranslit) setWordRevealed(null);
+        }}
+        className={`font-gurmukhi text-[1.8em] font-medium leading-[1.95] text-[var(--text)] tracking-normal selection:bg-[var(--accent-light)] ${
+          hiddenMemorize
+            ? "memorize-hidden cursor-pointer select-none"
+            : ""
+        } ${prefs.isTapToTranslit && !hiddenMemorize ? "cursor-pointer" : ""}`}
       >
-        {gurmukhiText}
+        {hiddenMemorize ? (
+          <span dir="auto" lang="pa">
+            ੴ ॥ {angNumber > 0 ? line.gurmukhi.split(/\s/).map(() => "—").join(" ") : ""}
+          </span>
+        ) : gurmukhiText}
       </p>
 
-      {/* Secondary: Transliteration */}
-      {prefs.showTransliteration && line.transliteration && (
-        <p className="mt-3 text-[0.95em] italic leading-relaxed text-[var(--text-muted)]">
-          {line.transliteration}
+      {/* Memorisation reveal hint */}
+      {hiddenMemorize && (
+        <button
+          onClick={() => setRevealed(true)}
+          className={`verse-extra mt-3 rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-semibold text-[var(--text-muted)] transition hover:text-[var(--text)] hover:border-[var(--accent)]`}
+        >
+          Tap to reveal verse
+        </button>
+      )}
+
+      {/* Tap-to-transliterate word bar (feature 19) */}
+      {prefs.isTapToTranslit && !hiddenMemorize && (
+        <div className={`verse-extra mt-3 ${wordPairs.length ? "" : "hidden"}`}>
+          <div className="flex flex-wrap gap-1.5" lang="pa">
+            {wordPairs.map(([gk, tr], i) => (
+              <span key={i} className="relative">
+                <button
+                  onClick={() => setWordRevealed((prev) => (prev === i ? null : i))}
+                  lang="pa"
+                  aria-pressed={wordRevealed === i}
+                  className={`rounded-md px-1.5 py-0.5 transition ${
+                    wordRevealed === i
+                      ? "bg-[var(--accent-light)] text-[var(--accent)]"
+                      : "hover:bg-[var(--surface-hover)] text-[var(--text)]"
+                  }`}
+                >
+                  {gk}
+                </button>
+                {wordRevealed === i && (
+                  <span className="mb-1 block text-center text-[0.62em] italic leading-none text-[var(--accent)]">
+                    {tr}
+                  </span>
+                )}
+              </span>
+            ))}
+          </div>
+          {wordPairs.length === 0 && (
+            <button
+              onClick={() => setWordRevealed((prev) => (prev === -1 ? null : -1))}
+              className="text-xs italic text-[var(--text-muted)] hover:text-[var(--text)] transition"
+            >
+              Tap to reveal transliteration
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Secondary: Transliteration (feature 24 — script follows preference) */}
+      {prefs.showTransliteration && !prefs.isTapToTranslit && translit && (
+        <p className={`verse-extra mt-3 text-[0.95em] italic leading-relaxed text-[var(--text-muted)] ${hiddenMemorize ? "blur-sm select-none" : ""}`}>
+          {translit}
         </p>
       )}
 
-      {/* Secondary: Translation */}
-      {prefs.showTranslation && translation && (
-        <p className="mt-2 text-[1.02em] leading-relaxed text-[var(--text-secondary)]">
-          {translation}
-        </p>
+      {/* Secondary: Translation — normal OR parallel layout (feature 18) */}
+      {prefs.showTranslation && !prefs.isTapToTranslit && (
+        prefs.isParallelTranslations ? (
+          <div className={`verse-extra mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 ${hiddenMemorize ? "blur-sm select-none" : ""}`}>
+            {primaryTranslation && (
+              <p className="text-[0.92em] leading-relaxed text-[var(--text-secondary)]">
+                {primaryTranslation}
+              </p>
+            )}
+            {punjabiTranslation && (
+              <p dir="auto" lang="pa" className="font-gurmukhi text-[0.92em] leading-relaxed text-[var(--text-secondary)]">
+                {punjabiTranslation}
+              </p>
+            )}
+          </div>
+        ) : (
+          prefs.showTranslation && primaryTranslation && (
+            <p className={`verse-extra mt-2 text-[1.02em] leading-relaxed text-[var(--text-secondary)] ${hiddenMemorize ? "blur-sm select-none" : ""}`}>
+              {primaryTranslation}
+            </p>
+          )
+        )
+      )}
+
+      {/* Kanji / commentary block (feature 21): Prof. Sahib Singh commentary */}
+      {prefs.showKanji && kanji && (
+        <div className={`verse-extra mt-4 rounded-lg border-l-2 border-[var(--accent)] bg-[var(--accent-light)]/40 px-3 py-2 ${hiddenMemorize ? "blur-sm select-none" : ""}`}>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--accent)]">
+            Kanji · Guru Granth Darpan (Prof. Sahib Singh)
+          </p>
+          <p dir="auto" lang="pa" className="font-gurmukhi mt-1 text-[0.9em] leading-relaxed text-[var(--text-secondary)]">
+            {kanji}
+          </p>
+        </div>
+      )}
+
+      {/* Verse notes (feature 10) */}
+      {notesOpen && (
+        <div className="verse-extra mt-4 space-y-2">
+          <textarea
+            value={note?.text ?? ""}
+            onChange={(e) => setNote(line.id, e.target.value)}
+            placeholder="Write a brief reflection on this verse…"
+            rows={2}
+            lang="en"
+            className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] p-2 text-xs text-[var(--text)] outline-none focus:border-[var(--accent)]"
+          />
+          {note && (
+            <button
+              onClick={() => removeNote(line.id)}
+              className="text-[11px] font-semibold text-[var(--text-muted)] hover:text-[var(--text)] transition"
+            >
+              Delete note
+            </button>
+          )}
+        </div>
       )}
 
       {/* Verse Metadata & Actions */}
@@ -112,7 +396,7 @@ export default function VerseCard({
         </div>
 
         {/* Action buttons — low-contrast by default; revealed on verse hover */}
-        <div className="flex items-center gap-1 opacity-60 transition-opacity group-hover:opacity-100">
+        <div className="verse-extra flex items-center gap-1 opacity-60 transition-opacity group-hover:opacity-100">
           {/* Copy verse text */}
           <button
             onClick={handleCopy}
@@ -121,6 +405,65 @@ export default function VerseCard({
             className="flex h-11 w-11 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--surface-active)] hover:text-[var(--text)] active:scale-[0.97]"
           >
             {copied ? <Check size={16} className="text-[var(--accent)]" /> : <Copy size={16} />}
+          </button>
+
+          {/* Share as card image */}
+          <button
+            onClick={handleShare}
+            aria-label="Share verse as image"
+            title={shared ? "Image downloaded" : "Share as image"}
+            className="flex h-11 w-11 items-center justify-center rounded-lg text-[var(--text-muted)] transition hover:bg-[var(--surface-active)] hover:text-[var(--text)] active:scale-[0.97]"
+          >
+            {shared ? <Check size={16} className="text-[var(--accent)]" /> : <Share2 size={16} />}
+          </button>
+
+          {/* Highlights — colour picker popover */}
+          <div className="relative">
+            <button
+              onClick={() => setHighlightOpen((o) => !o)}
+              aria-label="Highlight verse"
+              aria-expanded={highlightOpen}
+              title="Highlight with colour"
+              className={`flex h-11 w-11 items-center justify-center rounded-lg transition active:scale-[0.97] ${
+                highlight
+                  ? "text-[var(--accent)]"
+                  : "text-[var(--text-muted)] hover:bg-[var(--surface-active)] hover:text-[var(--text)]"
+              }`}
+            >
+              <Highlighter size={16} />
+            </button>
+            {highlightOpen && (
+              <div className="absolute bottom-12 right-0 z-20 flex gap-1.5 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2 shadow-[var(--shadow-popover)] animate-in fade-in zoom-in-95">
+                {(["saffron", "green", "blue", "rose"] as HighlightColor[]).map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => {
+                      toggleHighlight(line.id, c);
+                      setHighlightOpen(false);
+                    }}
+                    aria-label={`${HIGHLIGHT_LABELS[c]} highlight`}
+                    title={HIGHLIGHT_LABELS[c]}
+                    style={{ backgroundColor: HIGHLIGHT_TINTS[c] }}
+                    className="h-7 w-7 rounded-full border border-[var(--border)] transition hover:scale-110"
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Verse notes toggle */}
+          <button
+            onClick={() => setNotesOpen((o) => !o)}
+            aria-label="Add note to verse"
+            aria-expanded={notesOpen}
+            title={note ? "Edit verse note" : "Add verse note"}
+            className={`flex h-11 w-11 items-center justify-center rounded-lg transition active:scale-[0.97] ${
+              note
+                ? "text-[var(--accent)]"
+                : "text-[var(--text-muted)] hover:bg-[var(--surface-active)] hover:text-[var(--text)]"
+            }`}
+          >
+            {notesOpen ? <X size={16} /> : <StickyNote size={16} />}
           </button>
 
           {/* Toggle bookmark */}

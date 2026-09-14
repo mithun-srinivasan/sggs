@@ -3,19 +3,22 @@
  * ---------------------------------------------------------------------------
  * Renders the "end of Ang" card at the bottom of every Ang reader page.
  *
- * Two modes:
- *   1. **Not the last Ang (1–1429):** An `IntersectionObserver` watches the
- *      sentinel element. When the user scrolls it into the centre of the
- *      viewport (50% threshold), the page automatically navigates to the next
- *      Ang with a cross-fade transition.  A manual "Continue to Ang N+1"
- *      button is also rendered for users who prefer tapping.
- *   2. **Last Ang (1430):** A quiet "Completed Sri Guru Granth Sahib Ji"
+ * Two behaviour modes:
+ *
+ *   1. **Continuous reading (feature 2)** — an `IntersectionObserver` watches
+ *      the sentinel element; when the user scrolls it into the centre of the
+ *      viewport (50% threshold), `onEndReached(angNumber)` is awaited:
+ *        - if it returns `true`, the next Ang was *appended inline* by the
+ *          parent reader, so this sentinel simply keeps watching; and
+ *        - if it returns `false` (non-continuous, last Ang, or load failure),
+ *          the component auto-navigates to the next Ang with a cross-fade.
+ *   2. **Last Ang (1430)** — a quiet "Completed Sri Guru Granth Sahib Ji"
  *      message is displayed — no auto-advance or button.
  */
 
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
 import { KhandaIcon } from "@/components/SikhSymbols";
@@ -23,32 +26,69 @@ import { KhandaIcon } from "@/components/SikhSymbols";
 export default function AngEndSentinel({
   angNumber,
   maxAng,
+  onEndReached,
 }: {
   angNumber: number;
   maxAng: number;
+  onEndReached: (ang: number) => Promise<boolean>;
 }) {
   const router = useRouter();
   const nextAng = angNumber + 1;
   const isLastAng = angNumber >= maxAng;
 
-  /** Whether auto-navigation or manual navigation has been triggered. */
+  /** Whether navigation has already been triggered (stops duplicate pushes). */
   const [triggered, setTriggered] = useState(false);
+
+  /** Whether a "load next Ang" request is in flight (for UI text). */
+  const [loading, setLoading] = useState(false);
+
+  /**
+   * Ref guard so concurrent `IntersectionObserver` callbacks (and fast taps
+   * on the manual button) cannot double-fire `onEndReached`.
+   */
+  const busyRef = useRef(false);
 
   /** Ref to the DOM element the IntersectionObserver watches. */
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
+  /**
+   * The core advance routine: asks the parent whether the next Ang was
+   * appended inline (continuous mode) or whether we should navigate instead.
+   */
+  const handleAdvance = useCallback(async () => {
+    if (busyRef.current || triggered) return;
+    busyRef.current = true;
+    setLoading(true);
+
+    // Never auto-advance past the last Ang, and never fire twice.
+    let appended = false;
+    if (!isLastAng) {
+      appended = await onEndReached(angNumber);
+    }
+
+    if (appended) {
+      // Parent appended the next Ang inline — keep watching for the next bottom.
+      busyRef.current = false;
+      setLoading(false);
+      return;
+    }
+
+    // Fall back to full page navigation.
+    setTriggered(true);
+    setLoading(false);
+    window.dispatchEvent(new CustomEvent("crossfade-start"));
+    router.push(`/ang/${nextAng}`);
+  }, [angNumber, nextAng, isLastAng, onEndReached, router, triggered]);
+
   // -- IntersectionObserver auto-advance -------------------------------------
 
   useEffect(() => {
-    // Never auto-advance from Ang 1430, and never fire twice.
     if (isLastAng || triggered) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && !triggered) {
-          setTriggered(true);
-          window.dispatchEvent(new CustomEvent("crossfade-start"));
-          router.push(`/ang/${nextAng}`);
+        if (entries[0].isIntersecting && !busyRef.current) {
+          handleAdvance();
         }
       },
       { threshold: 0.5 } // trigger when the sentinel is 50% visible
@@ -59,7 +99,7 @@ export default function AngEndSentinel({
     }
 
     return () => observer.disconnect();
-  }, [isLastAng, triggered, nextAng, router]);
+  }, [isLastAng, triggered, handleAdvance]);
 
   // -- Final Ang: completion message -----------------------------------------
 
@@ -91,17 +131,17 @@ export default function AngEndSentinel({
             Completed Ang {angNumber}
           </p>
           <p className="text-xs font-semibold text-[var(--text)]">
-            {triggered ? `Transitioning to Ang ${nextAng}...` : `Advancing to Ang ${nextAng}`}
+            {loading
+              ? `Loading Ang ${nextAng}…`
+              : triggered
+                ? `Transitioning to Ang ${nextAng}...`
+                : `Advancing to Ang ${nextAng}`}
           </p>
         </div>
 
         {/* Manual continue button — fallback for users who prefer tapping */}
         <button
-          onClick={() => {
-            setTriggered(true);
-            window.dispatchEvent(new CustomEvent("crossfade-start"));
-            router.push(`/ang/${nextAng}`);
-          }}
+          onClick={handleAdvance}
           className="group inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-[var(--accent)] px-5 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:opacity-90 active:scale-[0.97]"
         >
           <span>Continue to Ang {nextAng}</span>

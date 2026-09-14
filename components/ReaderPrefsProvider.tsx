@@ -3,11 +3,21 @@
  * ---------------------------------------------------------------------------
  * React context + provider for the reader's display preferences.
  *
- * On first render it hydrates from `localStorage` (`sgs-reader-prefs`), merges
- * any missing keys with `DEFAULT_PREFS`, and then persists every change with a
- * 500ms debounce.  The provider also applies the current theme class (`theme-
- * light`, `theme-dark`, `theme-sepia`) to `<html>` so the CSS custom-property
- * palette in `globals.css` takes effect.
+ * Responsibilities:
+ *   - Hydrates from `localStorage` (`sgs-reader-prefs`) on first render,
+ *     merging any missing keys with `DEFAULT_PREFS`.
+ *   - Persists every change back to storage with a 500ms debounce.
+ *   - Applies the effective ThemeMode class (`theme-light|dark|sepia`) to
+ *     <html> so the CSS custom-property palettes in `globals.css` take effect.
+ *   - Handles **Auto Theme** (feature 4): when enabled, the effective theme
+ *     is derived from the device clock (daylight 06:00–18:00 → light) and the
+ *     system `prefers-color-scheme` preference (overrides the clock).
+ *   - Handles **Custom Accent** (feature 5): an optional hex colour override is
+ *     injected as `--accent` (+ derived translucent variants) on <html>.
+ *   - Handles **OLED mode** (feature 5): when enabled, forces the background
+ *     surfaces toward pure black for AMOLED displays.
+ *   - Mirrors **Focus mode** (feature 3) onto <html data-focus-mode> so the
+ *     CSS can hide the navigation bars.
  *
  * Consume with the `useReaderPrefs()` hook from any client component.
  */
@@ -23,7 +33,7 @@ import {
   useRef,
   type ReactNode,
 } from "react";
-import type { ReaderPrefs, ThemeMode, TranslationLang } from "@/lib/types";
+import type { ReaderPrefs, ThemeMode, TranslationLang, TranslitStyle } from "@/lib/types";
 
 /** localStorage key where reader preferences are persisted. */
 const STORAGE_KEY = "sgs-reader-prefs";
@@ -36,6 +46,16 @@ const DEFAULT_PREFS: ReaderPrefs = {
   translationLang: "en",
   fontScale: 1,
   isLareevarMode: false,
+  isContinuousMode: false,
+  isFocusMode: false,
+  isAutoTheme: false,
+  accentHex: null,
+  isOledTheme: false,
+  isMemorizationMode: false,
+  isParallelTranslations: false,
+  showKanji: false,
+  isTapToTranslit: false,
+  translitStyle: "en",
 };
 
 /**
@@ -50,10 +70,41 @@ interface ReaderPrefsContextValue extends ReaderPrefs {
   increaseFontSize: () => void;
   decreaseFontSize: () => void;
   toggleLareevarMode: () => void;
+  // New features (see lib/types.ts for each flag's meaning)
+  toggleContinuousMode: () => void;
+  toggleFocusMode: () => void;
+  toggleAutoTheme: () => void;
+  toggleOledTheme: () => void;
+  setAccentHex: (hex: string | null) => void;
+  toggleMemorizationMode: () => void;
+  toggleParallelTranslations: () => void;
+  toggleKanji: () => void;
+  toggleTapToTranslit: () => void;
+  setTranslitStyle: (style: TranslitStyle) => void;
 }
 
 /** Internal context — `null` before the provider is mounted. */
 const ReaderPrefsContext = createContext<ReaderPrefsContextValue | null>(null);
+
+/** Converts a hex colour into an rgba() string with the given alpha (0–1). */
+function hexToRgba(hex: string, alpha: number): string {
+  const h = hex.replace("#", "");
+  const full = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
+  const num = parseInt(full, 16);
+  // Guard against malformed values that parseInt silently turns into NaN.
+  if (Number.isNaN(num) || full.length !== 6) return `rgba(0,0,0,${alpha})`;
+  const r = (num >> 16) & 255;
+  const g = (num >> 8) & 255;
+  const b = num & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+/** Whether the given JSON value looks like an object with the prefs' shape. */
+function sanitizePrefs(raw: unknown): ReaderPrefs {
+  if (typeof raw !== "object" || raw === null) return DEFAULT_PREFS;
+  // Spread only the known keys so unknown/stale fields never leak through.
+  return { ...DEFAULT_PREFS, ...(raw as Partial<ReaderPrefs>) };
+}
 
 export function ReaderPrefsProvider({ children }: { children: ReactNode }) {
   /** Current preference state. Starts as defaults; hydrated from localStorage once. */
@@ -77,7 +128,7 @@ export function ReaderPrefsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) setPrefs({ ...DEFAULT_PREFS, ...JSON.parse(raw) });
+      if (raw) setPrefs(sanitizePrefs(JSON.parse(raw)));
     } catch {
       // Malformed localStorage data is ignored; defaults are used instead.
     } finally {
@@ -111,14 +162,70 @@ export function ReaderPrefsProvider({ children }: { children: ReactNode }) {
     };
   }, [prefs, hydrated, persistPrefs]);
 
-  // -- Apply theme class to <html> so CSS custom properties take effect ------
+  // -- Auto-theme: track the system colour-scheme when Auto Theme is on ------
+
+  /** Whether the OS is currently requesting dark UI. */
+  const [systemDark, setSystemDark] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    setSystemDark(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setSystemDark(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
+  // -- Effective theme resolution --------------------------------------------
+
+  /**
+   * If Auto Theme is enabled the *displayed* theme is derived rather than the
+   * user's manual pick: system preference wins, then the device clock
+   * (06:00–18:00 → light, otherwise dark).
+   */
+  const effectiveTheme: ThemeMode = prefs.isAutoTheme
+    ? systemDark
+      ? "dark"
+      : (() => {
+          const hour = new Date().getHours();
+          return hour >= 6 && hour < 18 ? "light" : "dark";
+        })()
+    : prefs.theme;
+
+  // -- Apply theme class + styling overrides to <html> -----------------------
 
   useEffect(() => {
     if (!hydrated) return;
     const root = document.documentElement;
     root.classList.remove("theme-light", "theme-dark", "theme-sepia");
-    root.classList.add(`theme-${prefs.theme}`);
-  }, [prefs, hydrated]);
+    root.classList.add(`theme-${effectiveTheme}`);
+
+    // Custom accent override (feature 5): replace the accent CSS variables.
+    const style = root.style;
+    if (prefs.accentHex && /^#([0-9a-fA-F]{3}){1,2}$/.test(prefs.accentHex)) {
+      const hex = prefs.accentHex;
+      style.setProperty("--accent", hex);
+      style.setProperty("--accent-light", hexToRgba(hex, 0.12));
+      style.setProperty("--accent-glow", hexToRgba(hex, 0.2));
+    } else {
+      style.removeProperty("--accent");
+      style.removeProperty("--accent-light");
+      style.removeProperty("--accent-glow");
+    }
+
+    // OLED mode (feature 5): pure-black backgrounds in dark themes.
+    if (prefs.isOledTheme && effectiveTheme !== "light") {
+      style.setProperty("--bg", "#000");
+      style.setProperty("--bg-glass", "rgba(0, 0, 0, 0.88)");
+      style.setProperty("--surface", "#000");
+    } else {
+      style.removeProperty("--bg");
+      style.removeProperty("--bg-glass");
+      style.removeProperty("--surface");
+    }
+
+    // Focus mode (feature 3): flag on <html> so CSS hides the nav chrome.
+    root.dataset.focusMode = prefs.isFocusMode ? "on" : "";
+  }, [prefs, effectiveTheme, hydrated]);
 
   // -- Context value: memoized setters compose the public API ----------------
 
@@ -143,6 +250,23 @@ export function ReaderPrefsProvider({ children }: { children: ReactNode }) {
       })),
     toggleLareevarMode: () =>
       setPrefs((p) => ({ ...p, isLareevarMode: !p.isLareevarMode })),
+    toggleContinuousMode: () =>
+      setPrefs((p) => ({ ...p, isContinuousMode: !p.isContinuousMode })),
+    toggleFocusMode: () =>
+      setPrefs((p) => ({ ...p, isFocusMode: !p.isFocusMode })),
+    toggleAutoTheme: () =>
+      setPrefs((p) => ({ ...p, isAutoTheme: !p.isAutoTheme })),
+    toggleOledTheme: () =>
+      setPrefs((p) => ({ ...p, isOledTheme: !p.isOledTheme })),
+    setAccentHex: (accentHex) => setPrefs((p) => ({ ...p, accentHex })),
+    toggleMemorizationMode: () =>
+      setPrefs((p) => ({ ...p, isMemorizationMode: !p.isMemorizationMode })),
+    toggleParallelTranslations: () =>
+      setPrefs((p) => ({ ...p, isParallelTranslations: !p.isParallelTranslations })),
+    toggleKanji: () => setPrefs((p) => ({ ...p, showKanji: !p.showKanji })),
+    toggleTapToTranslit: () =>
+      setPrefs((p) => ({ ...p, isTapToTranslit: !p.isTapToTranslit })),
+    setTranslitStyle: (translitStyle) => setPrefs((p) => ({ ...p, translitStyle })),
   };
 
   return (

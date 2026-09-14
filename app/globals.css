@@ -190,3 +190,80 @@ body {
 .page-crossfade-overlay.active {
   opacity: 1;
 }
+
+/* ---------------------------------------------------------------------- */
+/* Feature: Verse Memorisation mode (feature 6)                           */
+/* Blurs the scripture so the reader can recall it; tapping reveals it.    */
+/* ---------------------------------------------------------------------- */
+.memorize-hidden {
+  filter: blur(9px);
+  transition: filter 200ms ease-out;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Feature: Focus mode (feature 3)                                        */
+/* `ReaderPrefsProvider` sets `data-focus-mode="on"` on <html>. Everything  */
+/* tagged `verse-extra` (transliteration, translation, actions) plus the    */
+/* navigation chrome is hidden, leaving only the Gurmukhi scripture.        */
+/* ---------------------------------------------------------------------- */
+html[data-focus-mode="on"] .verse-extra {
+  display: none !important;
+}
+
+html[data-focus-mode="on"] .glass-nav-pinned {
+  display: none !important;
+}
+
+html[data-focus-mode="on"] .icon-border::before,
+html[data-focus-mode="on"] .icon-border::after {
+  display: none;
+}
+
+html[data-focus-mode="on"] main {
+  padding-top: 2rem !important;
+  padding-bottom: 2rem !important;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Feature: Print / Save as PDF (feature 15)                              */
+/* Strips the interactive chrome and re-themes to ink-on-paper.            */
+/* ---------------------------------------------------------------------- */
+@media print {
+  .print-hide {
+    display: none !important;
+  }
+
+  :root,
+  .theme-light,
+  .theme-dark,
+  .theme-sepia {
+    --bg: #ffffff;
+    --bg-glass: #ffffff;
+    --surface: #ffffff;
+    --surface-hover: #ffffff;
+    --surface-active: #ffffff;
+    --text: #000000;
+    --text-secondary: #1a1a1a;
+    --text-muted: #333333;
+    --text-faint: #555555;
+    --border: #cccccc;
+    --border-subtle: #dddddd;
+    --accent: #000000;
+    --accent-light: #f2f2f2;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  .break-inside-avoid {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  a {
+    color: #000000 !important;
+    text-decoration: none !important;
+  }
+}

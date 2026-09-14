@@ -3,23 +3,25 @@
  * ---------------------------------------------------------------------------
  * The settings popover that appears at the top of the Ang reader.
  *
- * Exposes controls for:
- *   - Transliteration toggle
- *   - Translation toggle
- *   - Lareevar reading mode toggle
- *   - Translation language selection (English / Punjabi)
- *   - Font-size stepper (80%–160%)
- *   - Theme picker (Light / Dark / Sepia)
+ * Beyond the classic controls (transliteration / translation toggles,
+ * language picker, Lareevar mode, font-size stepper, theme picker) this panel
+ * exposes every new reader feature added for the feature set:
  *
- * All state is read from and written to `ReaderPrefsProvider`, which persists
- * to `localStorage` automatically.
+ *   - Continuous mode        (feature 2)   - Focus mode              (feature 3)
+ *   - Auto theme             (feature 4)   - Custom accent + OLED    (feature 5)
+ *   - Memorisation mode      (feature 6)   - Parallel translations   (feature 18)
+ *   - Kanji commentary       (feature 21)  - Tap-to-transliterate    (feature 19)
+ *   - Transliteration script (feature 24)
+ *
+ * All state is read from / written to `ReaderPrefsProvider`, which persists
+ * every change to `localStorage` automatically.
  */
 
 "use client";
 
 import { Minus, Plus, Sun, Moon, Coffee } from "lucide-react";
 import { useReaderPrefs } from "./ReaderPrefsProvider";
-import type { ThemeMode, TranslationLang } from "@/lib/types";
+import type { ThemeMode, TranslationLang, TranslitStyle } from "@/lib/types";
 
 /** Available themes and their display metadata. */
 const THEMES: { id: ThemeMode; label: string; icon: typeof Sun }[] = [
@@ -34,14 +36,59 @@ const LANGS: { id: TranslationLang; label: string }[] = [
   { id: "pu", label: "Punjabi" },
 ];
 
+/** Procedural accent swatches the user can pick from. */
+const ACCENT_SWATCHES = ["#F59E0B", "#B45309", "#16A34A", "#2563EB", "#DB2777", "#7C3AED"];
+
+/** Transliteration script choices (feature 24). */
+const TRANSLIT_STYLES: { id: TranslitStyle; label: string }[] = [
+  { id: "en", label: "English" },
+  { id: "hi", label: "Hindi" },
+  { id: "ur", label: "Urdu" },
+  { id: "ipa", label: "IPA" },
+];
+
+/** A labelled on/off toggle row reused for every boolean preference. */
+function ToggleRow({
+  label,
+  pressed,
+  onToggle,
+  hint,
+}: {
+  label: string;
+  pressed: boolean;
+  onToggle: () => void;
+  hint?: string;
+}) {
+  return (
+    <button
+      onClick={onToggle}
+      aria-pressed={pressed}
+      title={hint}
+      className={`flex min-h-[44px] items-center justify-between gap-3 rounded-lg border px-4 py-2.5 text-xs font-semibold transition ${
+        pressed
+          ? "border-[var(--accent)] text-[var(--accent)]"
+          : "border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:border-[var(--border-highlight)]"
+      }`}
+    >
+      <span>{label}</span>
+      <span
+        className={`block h-4 w-7 rounded-full transition ${
+          pressed ? "bg-[var(--accent)]" : "bg-[var(--border)]"
+        }`}
+      />
+    </button>
+  );
+}
+
 export default function ReaderControls() {
   const prefs = useReaderPrefs();
 
   return (
-    <div className="flex flex-col gap-6 py-2 sm:flex-row sm:items-center sm:justify-between">
-      {/* Visibility Toggles */}
+    <div className="flex flex-col gap-6 py-2">
+      {/* ------------------------------------------------------------------ */}
+      {/* Base visibility toggles (original controls)                        */}
+      {/* ------------------------------------------------------------------ */}
       <div className="flex flex-wrap items-center gap-3">
-        {/* Transliteration toggle — shows/hides Roman-script text below each verse. */}
         <button
           onClick={prefs.toggleTransliteration}
           aria-pressed={prefs.showTransliteration}
@@ -54,7 +101,6 @@ export default function ReaderControls() {
           Transliteration
         </button>
 
-        {/* Translation toggle — shows/hides the English or Punjabi translation. */}
         <button
           onClick={prefs.toggleTranslation}
           aria-pressed={prefs.showTranslation}
@@ -67,7 +113,6 @@ export default function ReaderControls() {
           Translation
         </button>
 
-        {/* Lareevar toggle — blends spaces in Gurmukhi for traditional continuous reading. */}
         <button
           onClick={prefs.toggleLareevarMode}
           aria-pressed={prefs.isLareevarMode}
@@ -81,7 +126,6 @@ export default function ReaderControls() {
           Lareevar
         </button>
 
-        {/* Language picker — only visible when translations are enabled. */}
         {prefs.showTranslation && (
           <div className="flex items-center rounded-lg border border-[var(--border)] p-0.5">
             {LANGS.map(({ id, label }) => (
@@ -102,16 +146,64 @@ export default function ReaderControls() {
         )}
       </div>
 
-      {/* Font Size & Theme controls */}
-      <div className="flex flex-wrap items-center gap-6">
-        {/* Font-size stepper: each tap adjusts by ±10%, clamped to 80%–160%. */}
-        <div className="flex items-center gap-2">
+      {/* ------------------------------------------------------------------ */}
+      {/* Reading mode toggles (features 2, 3, 6)                             */}
+      {/* ------------------------------------------------------------------ */}
+      <div>
+        <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-faint)]">
+          Reading Mode
+        </p>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <ToggleRow
+            label="Continuous Reading"
+            pressed={prefs.isContinuousMode}
+            onToggle={prefs.toggleContinuousMode}
+            hint="Append the next Ang inline at the end instead of navigating"
+          />
+          <ToggleRow
+            label="Focus Mode"
+            pressed={prefs.isFocusMode}
+            onToggle={prefs.toggleFocusMode}
+            hint="Hide everything except the Gurmukhi scripture"
+          />
+          <ToggleRow
+            label="Memorise"
+            pressed={prefs.isMemorizationMode}
+            onToggle={prefs.toggleMemorizationMode}
+            hint="Blur the verse; tap it to reveal for memorisation practice"
+          />
+        </div>
+      </div>
+
+      {/* ------------------------------------------------------------------ */}
+      {/* Appearance toggles (features 4, 5)                                  */}
+      {/* ------------------------------------------------------------------ */}
+      <div>
+        <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-faint)]">
+          Appearance
+        </p>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <ToggleRow
+            label="Auto Theme"
+            pressed={prefs.isAutoTheme}
+            onToggle={prefs.toggleAutoTheme}
+            hint="Follow the device clock and system colour-scheme"
+          />
+          <ToggleRow
+            label="OLED Black"
+            pressed={prefs.isOledTheme}
+            onToggle={prefs.toggleOledTheme}
+            hint="Pure-black backgrounds on dark/sepia themes for AMOLED"
+          />
+        </div>
+
+        {/* Font-size stepper */}
+        <div className="mt-3 flex items-center gap-2">
           <span className="text-xs font-semibold text-[var(--text-muted)]">Text Size</span>
           <div className="flex items-center rounded-lg border border-[var(--border)]">
             <button
               onClick={prefs.decreaseFontSize}
               aria-label="Decrease text size"
-              title="Smaller text"
               className="flex h-11 w-11 items-center justify-center text-[var(--text-muted)] hover:text-[var(--text)] transition"
             >
               <Minus size={16} />
@@ -122,24 +214,19 @@ export default function ReaderControls() {
             <button
               onClick={prefs.increaseFontSize}
               aria-label="Increase text size"
-              title="Larger text"
               className="flex h-11 w-11 items-center justify-center text-[var(--text-muted)] hover:text-[var(--text)] transition"
             >
               <Plus size={16} />
             </button>
           </div>
-        </div>
 
-        {/* Theme picker — cycles between Light, Dark, and Sepia palettes. */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold text-[var(--text-muted)]">Theme</span>
+          {/* Theme picker */}
           <div className="flex items-center rounded-lg border border-[var(--border)]">
             {THEMES.map(({ id, label, icon: Icon }) => (
               <button
                 key={id}
                 onClick={() => prefs.setTheme(id)}
                 aria-label={`${label} theme`}
-                title={`${label} theme`}
                 aria-pressed={prefs.theme === id}
                 className={`flex h-11 w-11 items-center justify-center transition ${
                   prefs.theme === id
@@ -148,6 +235,73 @@ export default function ReaderControls() {
                 }`}
               >
                 <Icon size={16} />
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Custom accent swatches */}
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <span className="text-xs font-semibold text-[var(--text-muted)]">Accent</span>
+          {ACCENT_SWATCHES.map((hex) => (
+            <button
+              key={hex}
+              onClick={() => prefs.setAccentHex(prefs.accentHex === hex ? null : hex)}
+              aria-label={`Accent colour ${hex}`}
+              title={hex}
+              style={{ backgroundColor: hex }}
+              className={`h-7 w-7 rounded-full border-2 transition hover:scale-110 ${
+                prefs.accentHex === hex ? "border-[var(--text)] scale-110" : "border-transparent"
+              }`}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* ------------------------------------------------------------------ */}
+      {/* Text & commentary toggles (features 18, 19, 20, 21, 24)             */}
+      {/* ------------------------------------------------------------------ */}
+      <div>
+        <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-faint)]">
+          Text &amp; Commentary
+        </p>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <ToggleRow
+            label="Parallel Translations"
+            pressed={prefs.isParallelTranslations}
+            onToggle={prefs.toggleParallelTranslations}
+            hint="Show English and Punjabi side-by-side"
+          />
+          <ToggleRow
+            label="Kanji (Commentary)"
+            pressed={prefs.showKanji}
+            onToggle={prefs.toggleKanji}
+            hint="Show Punjabi commentary block (Prof. Sahib Singh / Guru Granth Darpan)"
+          />
+          <ToggleRow
+            label="Tap-to-Transliterate"
+            pressed={prefs.isTapToTranslit}
+            onToggle={prefs.toggleTapToTranslit}
+            hint="Tap any Gurmukhi word to see its transliteration"
+          />
+        </div>
+
+        {/* Transliteration script selector */}
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <span className="text-xs font-semibold text-[var(--text-muted)]">Transliteration Script</span>
+          <div className="flex items-center rounded-lg border border-[var(--border)] p-0.5">
+            {TRANSLIT_STYLES.map(({ id, label }) => (
+              <button
+                key={id}
+                onClick={() => prefs.setTranslitStyle(id)}
+                aria-pressed={prefs.translitStyle === id}
+                className={`min-h-[34px] px-3 text-xs font-semibold transition rounded ${
+                  prefs.translitStyle === id
+                    ? "bg-[var(--accent)] text-white"
+                    : "text-[var(--text-muted)] hover:text-[var(--text)]"
+                }`}
+              >
+                {label}
               </button>
             ))}
           </div>

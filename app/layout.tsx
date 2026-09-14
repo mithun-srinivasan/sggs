@@ -7,18 +7,23 @@
  *   - Loads the two Google fonts: `Noto Sans Gurmukhi` (for scripture text)
  *     and `Inter` (for UI / body text), injecting their CSS variable classes.
  *   - Provides global metadata (title, description) used by Next.js <head>.
- *   - Mounts three providers that wrap every page:
- *       1. `ReaderPrefsProvider` — manages theme, font-size, and display prefs
- *       2. `BookmarksProvider`   — manages the user's saved verses
- *       3. `PageTransition`      — listens for crossfade events and renders the overlay
+ *   - Mounts the app-wide providers that wrap every page (reader prefs,
+ *     bookmarks, reading progress/streaks/history, notes, and highlights),
+ *     plus the shortcut-help modal, the crossfade transition overlay, and
+ *     the PWA service-worker registrar.
  *   - Includes Vercel Analytics and Speed Insights for production telemetry.
  */
 
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Noto_Sans_Gurmukhi, Inter } from "next/font/google";
 import { ReaderPrefsProvider } from "@/components/ReaderPrefsProvider";
 import { BookmarksProvider } from "@/components/BookmarksProvider";
+import { ProgressProvider } from "@/components/ProgressProvider";
+import { NotesProvider } from "@/components/NotesProvider";
+import { HighlightsProvider } from "@/components/HighlightsProvider";
 import PageTransition from "@/components/PageTransition";
+import ShortcutHelp from "@/components/ShortcutHelp";
+import ServiceWorkerRegistrar from "@/components/ServiceWorkerRegistrar";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
@@ -46,6 +51,26 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Sri Guru Granth Sahib Ji — Ang Reader",
   description: "A radically minimalist, verse-by-verse digital reader for Sri Guru Granth Sahib Ji.",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+  },
+  appleWebApp: {
+    capable: true,
+    title: "SGGS Reader",
+    statusBarStyle: "black-translucent",
+  },
+};
+
+/** Mobile-viewport metadata (safe-area + theme colour for installed PWAs). */
+export const viewport: Viewport = {
+  themeColor: "#F59E0B",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -54,8 +79,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={`${gurmukhi.variable} ${inter.variable} font-sans antialiased`}>
         <ReaderPrefsProvider>
           <BookmarksProvider>
-            <PageTransition />
-            {children}
+            <ProgressProvider>
+              <NotesProvider>
+                <HighlightsProvider>
+                  <PageTransition />
+                  <ShortcutHelp />
+                  <ServiceWorkerRegistrar />
+                  {children}
+                </HighlightsProvider>
+              </NotesProvider>
+            </ProgressProvider>
           </BookmarksProvider>
         </ReaderPrefsProvider>
         <Analytics />
