@@ -34,10 +34,19 @@ import {
 } from "lucide-react";
 import { MAX_ANG, MIN_ANG } from "@/lib/types";
 import { clampAng } from "@/lib/data";
+import { useReaderPrefs } from "./ReaderPrefsProvider";
 import ReaderControls from "./ReaderControls";
+
+/** How close (in px) the pointer must be to the top edge for the bar to peek in.
+ *  Big enough that the whole bar + popover header area counts as "near top". */
+const TOP_PEEK_ZONE = 96;
+
+/** How long the bar lingers after the pointer leaves the top zone before hiding. */
+const PEEK_HIDE_DELAY = 300;
 
 export default function NavigationBar({ angNumber }: { angNumber: number }) {
   const router = useRouter();
+  const { isFocusMode } = useReaderPrefs();
 
   /** The raw text inside the Ang number input field. */
   const [inputValue, setInputValue] = useState(String(angNumber));
@@ -63,7 +72,57 @@ export default function NavigationBar({ angNumber }: { angNumber: number }) {
   /** Whether the document is currently in fullscreen mode. */
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // -- Sync input + persist last-read Ang to localStorage --------------------
+  /** Focus-mode edge-peek: whether the bar is currently revealed because the
+   *  pointer is near the top edge.  Only meaningful while `isFocusMode` is on. */
+  const [peeked, setPeeked] = useState(false);
+
+  /** Delayed-hide timer so the bar doesn't flicker while crossing the top zone. */
+  const peekTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const controlsOpenRef = useRef(controlsOpen);
+
+  useEffect(() => {
+    controlsOpenRef.current = controlsOpen;
+  }, [controlsOpen]);
+
+  // -- Focus-mode edge-peek -------------------------------------------------
+
+  // Reset the peek slot when focus mode toggles (adjust state during render,
+  // per the React docs — avoids a stale peek after toggling the mode off/on).
+  const [prevFocusMode, setPrevFocusMode] = useState(isFocusMode);
+  if (prevFocusMode !== isFocusMode) {
+    setPrevFocusMode(isFocusMode);
+    setPeeked(false);
+  }
+
+  useEffect(() => {
+    if (!isFocusMode) return;
+
+    const handleMouseMove = (event: MouseEvent) => {
+      // Pointer inside the top zone → reveal immediately.
+      if (event.clientY <= TOP_PEEK_ZONE) {
+        if (peekTimer.current) {
+          clearTimeout(peekTimer.current);
+          peekTimer.current = null;
+        }
+        setPeeked(true);
+        return;
+      }
+      // Pointer left the zone further than the bar itself → hide, unless the
+      // Settings popover is open (the panel reaches below the top zone).
+      if (controlsOpenRef.current) return;
+      if (peekTimer.current) return;
+      peekTimer.current = setTimeout(() => {
+        peekTimer.current = null;
+        setPeeked(false);
+      }, PEEK_HIDE_DELAY);
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      if (peekTimer.current) clearTimeout(peekTimer.current);
+    };
+  }, [isFocusMode]);
 
   useEffect(() => {
     try {
@@ -168,11 +227,15 @@ export default function NavigationBar({ angNumber }: { angNumber: number }) {
     goTo(Number.isNaN(n) ? angNumber : n);
   };
 
+  /** Whether the bar is currently shown: normal scroll-aware behaviour when
+   *  focus mode is off; edge-peek (or settings popover) when it is on. */
+  const shown = isFocusMode ? peeked || controlsOpen : visible;
+
   return (
     <header
-      className={`fixed top-0 inset-x-0 z-30 transition-transform duration-300 ease-out ${
-        visible ? "translate-y-0" : "-translate-y-full"
-      } glass-nav-pinned border-b border-[var(--border)]`}
+      className={`fixed top-0 inset-x-0 z-30 glass-nav-pinned transition-transform duration-300 ease-out ${
+        shown ? "translate-y-0" : "-translate-y-full"
+      } border-b border-[var(--border)]`}
     >
       <div className="mx-auto flex max-w-3xl items-center justify-between gap-2 px-3 py-2.5 sm:px-6">
         {/* Left cluster: Home + Previous Ang */}

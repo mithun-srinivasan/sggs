@@ -255,7 +255,11 @@ html[data-focus-mode="on"] .verse-extra {
   display: none !important;
 }
 
-html[data-focus-mode="on"] .glass-nav-pinned {
+/* In focus mode the reader's bottom (Previous/Next) chrome is hidden for a
+   distraction-free view. The top navigation bar is *not* disconnected here:
+   `NavigationBar` slides it off-screen and peeks it back when the pointer
+   approaches the top edge, so the Settings panel stays reachable. */
+html[data-focus-mode="on"] .bottom-nav-pinned {
   display: none !important;
 }
 

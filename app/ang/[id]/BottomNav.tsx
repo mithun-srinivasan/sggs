@@ -58,7 +58,7 @@ export default function BottomNav({
 
   return (
     <footer
-      className={`fixed inset-x-0 bottom-0 z-20 glass-nav-pinned transition-transform duration-300 ease-out ${
+      className={`fixed inset-x-0 bottom-0 z-20 glass-nav-pinned bottom-nav-pinned transition-transform duration-300 ease-out ${
         visible ? "translate-y-0" : "translate-y-full"
       }`}
     >
