@@ -27,6 +27,7 @@ export default function GurpurabCalendar() {
   const [upcoming, setUpcoming] = useState<Upcoming[] | null>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- compute next Gurpurabs after mount (matches date on client only)
     setUpcoming(getUpcomingGurpurabs(new Date(), 60));
   }, []);
 

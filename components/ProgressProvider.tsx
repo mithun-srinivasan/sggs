@@ -24,6 +24,7 @@ import {
   useEffect,
   useState,
   useCallback,
+  useMemo,
   useRef,
   type ReactNode,
 } from "react";
@@ -90,6 +91,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- deliberate SSR-safe post-mount hydration from localStorage
       if (raw) setProgress({ ...EMPTY, ...JSON.parse(raw) });
     } catch {
       // corrupt storage — fall back to empty
@@ -133,22 +135,6 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
 
   const isAngRead = useCallback((ang: number) => progress.readAngs.includes(ang), [progress.readAngs]);
 
-  /** Consecutive days (>=1) with a read, counting forward from today. */
-  const streak = (() => {
-    if (!hydrated) return 0;
-    let days = 0;
-    const cursor = new Date();
-    // If today has no read yet, allow the streak to count from yesterday.
-    if (!progress.visits[dayKey(cursor)]) cursor.setDate(cursor.getDate() - 1);
-    while (progress.visits[dayKey(cursor)]) {
-      days += 1;
-      cursor.setDate(cursor.getDate() - 1);
-    }
-    return days;
-  })();
-
-  const lastRead = progress.history[progress.history.length - 1];
-
   const startPlan = useCallback((totalDays: number) => {
     setProgress((p) => ({
       ...p,
@@ -160,50 +146,66 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
     setProgress((p) => ({ ...p, plan: null }));
   }, []);
 
-  /** 0-based index into the plan for the current day (-1 when no plan). */
-  const planDayIndex = (() => {
-    if (!hydrated || !progress.plan) return -1;
-    const start = dateFromKey(progress.plan.startDate);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const dayMs = 86_400_000;
-    const idx = Math.floor((today.getTime() - start.getTime()) / dayMs);
-    return Math.max(0, Math.min(idx, progress.plan.totalDays - 1));
-  })();
+  const value = useMemo((): ProgressContextValue => {
+    /** Consecutive days (>=1) with a read, counting forward from today. */
+    const streak = (() => {
+      if (!hydrated) return 0;
+      let days = 0;
+      const cursor = new Date();
+      // If today has no read yet, allow the streak to count from yesterday.
+      if (!progress.visits[dayKey(cursor)]) cursor.setDate(cursor.getDate() - 1);
+      while (progress.visits[dayKey(cursor)]) {
+        days += 1;
+        cursor.setDate(cursor.getDate() - 1);
+      }
+      return days;
+    })();
 
-  /** The Ang range scheduled for today under the plan (null when no plan). */
-  const todaysPlanRange: [number, number] | null = (() => {
-    if (!hydrated || !progress.plan || planDayIndex < 0) return null;
-    const perDay = Math.ceil(MAX_ANG / progress.plan.totalDays);
-    const fromAng = planDayIndex * perDay + 1;
-    const toAng = Math.min(MAX_ANG, fromAng + perDay - 1);
-    return [fromAng, toAng];
-  })();
+    /** 0-based index into the plan for the current day (-1 when no plan). */
+    const planDayIndex = (() => {
+      if (!hydrated || !progress.plan) return -1;
+      const start = dateFromKey(progress.plan.startDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const dayMs = 86_400_000;
+      const idx = Math.floor((today.getTime() - start.getTime()) / dayMs);
+      return Math.max(0, Math.min(idx, progress.plan.totalDays - 1));
+    })();
 
-  /** First unread Ang at or after today's range start. */
-  const planContinueAng = (() => {
-    if (!hydrated || !todaysPlanRange) return MIN_ANG;
-    const [fromAng] = todaysPlanRange;
-    let cursor = fromAng;
-    while (cursor <= MAX_ANG && progress.readAngs.includes(cursor)) cursor += 1;
-    return cursor;
-  })();
+    /** The Ang range scheduled for today under the plan (null when no plan). */
+    const todaysPlanRange: [number, number] | null = (() => {
+      if (!hydrated || !progress.plan || planDayIndex < 0) return null;
+      const perDay = Math.ceil(MAX_ANG / progress.plan.totalDays);
+      const fromAng = planDayIndex * perDay + 1;
+      const toAng = Math.min(MAX_ANG, fromAng + perDay - 1);
+      return [fromAng, toAng];
+    })();
 
-  const value: ProgressContextValue = {
-    ...progress,
-    hydrated,
-    markAngRead,
-    isAngRead,
-    progressPercent: Math.round((progress.readAngs.length / MAX_ANG) * 100),
-    totalReadDays: Object.keys(progress.visits).length,
-    streak,
-    lastRead,
-    startPlan,
-    clearPlan,
-    planDayIndex,
-    todaysPlanRange,
-    planContinueAng,
-  };
+    /** First unread Ang at or after today's range start. */
+    const planContinueAng = (() => {
+      if (!hydrated || !todaysPlanRange) return MIN_ANG;
+      const [fromAng] = todaysPlanRange;
+      let cursor = fromAng;
+      while (cursor <= MAX_ANG && progress.readAngs.includes(cursor)) cursor += 1;
+      return cursor;
+    })();
+
+    return {
+      ...progress,
+      hydrated,
+      markAngRead,
+      isAngRead,
+      progressPercent: Math.round((progress.readAngs.length / MAX_ANG) * 100),
+      totalReadDays: Object.keys(progress.visits).length,
+      streak,
+      lastRead: progress.history[progress.history.length - 1],
+      startPlan,
+      clearPlan,
+      planDayIndex,
+      todaysPlanRange,
+      planContinueAng,
+    };
+  }, [progress, hydrated, markAngRead, isAngRead, startPlan, clearPlan]);
 
   return <ProgressContext.Provider value={value}>{children}</ProgressContext.Provider>;
 }

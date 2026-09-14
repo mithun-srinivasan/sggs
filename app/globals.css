@@ -117,11 +117,56 @@ body {
     "Segoe UI", Roboto, sans-serif;
 }
 
-/* Calm, dignified transitions — 200ms ease-out cubic-bezier */
-* {
+/* Calm, dignified transitions — 200ms ease-out cubic-bezier.
+   Scoped to interactive elements only (a universal `*` transition adds
+   significant per-frame cost to the long Ang pages). */
+:where(a, button, input, select, textarea, label, summary, [role="button"]) {
   transition-property: background-color, border-color, color, opacity, transform, box-shadow;
   transition-duration: 200ms;
   transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Entrance animation utilities (animate-in + fade/slide/zoom variants) used
+   by the home page, reader, and popovers. */
+@keyframes enter {
+  from {
+    opacity: var(--tw-enter-opacity, 1);
+    transform: translate3d(
+        var(--tw-enter-translate-x, 0),
+        var(--tw-enter-translate-y, 0),
+        0
+      )
+      scale3d(
+        var(--tw-enter-scale, 1),
+        var(--tw-enter-scale, 1),
+        var(--tw-enter-scale, 1)
+      )
+      rotate(var(--tw-enter-rotate, 0));
+  }
+}
+
+.animate-in {
+  animation-name: enter;
+  animation-duration: 500ms;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  animation-fill-mode: both;
+  --tw-enter-opacity: initial;
+  --tw-enter-scale: initial;
+  --tw-enter-rotate: initial;
+  --tw-enter-translate-x: initial;
+  --tw-enter-translate-y: initial;
+}
+
+.fade-in {
+  --tw-enter-opacity: 0;
+}
+
+.slide-in-from-top-2 {
+  --tw-enter-translate-y: -0.5rem;
+}
+
+.zoom-in-95 {
+  --tw-enter-scale: 0.95;
 }
 
 /* Glassmorphism Navigation */
@@ -259,7 +304,6 @@ html[data-focus-mode="on"] main {
 
   .break-inside-avoid {
     break-inside: avoid;
-    page-break-inside: avoid;
   }
 
   a {

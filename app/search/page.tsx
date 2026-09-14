@@ -37,18 +37,29 @@ export default function SearchPage() {
   /** Whether a search has been submitted (used to decide whether to show the landing UI). */
   const [searched, setSearched] = useState(false);
 
+  /** Whether the last search attempt failed (server/network error). */
+  const [error, setError] = useState(false);
+
   /**
    * Executes a search for the given term.
    * Updates `results`, `query`, and the `loading`/`searched` flags.
+   * Any failure surfaces an error state instead of leaving the spinner spinning.
    */
   const doSearch = async (term: string) => {
     if (!term.trim()) return;
     setQuery(term);
     setLoading(true);
     setSearched(true);
-    const res = await runSearch(term);
-    setResults(res);
-    setLoading(false);
+    setError(false);
+    try {
+      const res = await runSearch(term);
+      setResults(res);
+    } catch {
+      setResults([]);
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
   };
 
   /** Form submission handler — prevents default and delegates to `doSearch`. */
@@ -134,10 +145,20 @@ export default function SearchPage() {
         )}
 
         {/* Empty results */}
-        {!loading && searched && results.length === 0 && (
+        {!loading && searched && results.length === 0 && !error && (
           <div className="py-16 text-center space-y-1">
             <p className="text-sm font-semibold text-[var(--text)]">No results for &ldquo;{query}&rdquo;</p>
             <p className="text-xs text-[var(--text-muted)]">Try a shorter search term or check spelling.</p>
+          </div>
+        )}
+
+        {/* Search error */}
+        {!loading && searched && error && (
+          <div className="py-16 text-center space-y-1">
+            <p className="text-sm font-semibold text-[var(--text)]">Search failed right now.</p>
+            <p className="text-xs text-[var(--text-muted)]">
+              Check your connection and try again, or search for something else.
+            </p>
           </div>
         )}
 

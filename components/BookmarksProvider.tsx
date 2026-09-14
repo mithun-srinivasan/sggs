@@ -19,6 +19,7 @@ import {
   useEffect,
   useState,
   useCallback,
+  useMemo,
   useRef,
   type ReactNode,
 } from "react";
@@ -64,7 +65,10 @@ export function BookmarksProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) setBookmarks(JSON.parse(raw));
+      if (raw) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- deliberate SSR-safe post-mount hydration from localStorage
+        setBookmarks(JSON.parse(raw));
+      }
     } catch {
       // Malformed storage is silently ignored.
     } finally {
@@ -100,8 +104,12 @@ export function BookmarksProvider({ children }: { children: ReactNode }) {
 
   // -- Set ref for O(1) isBookmarked checks ---------------------------------
 
-  /** Maintains a `Set` of verse ids that stays in sync with `bookmarks`. */
-  const bookmarkSet = useRef<Set<string>>(new Set(bookmarks.map((b) => b.verseId)));
+  /** Maintains a `Set` of verse ids that stays in sync with `bookmarks`
+   *  (lazily initialised exactly once; the argument is never re-evaluated). */
+  const bookmarkSet = useRef<Set<string> | null>(null);
+  if (bookmarkSet.current === null) {
+    bookmarkSet.current = new Set(bookmarks.map((b) => b.verseId));
+  }
 
   useEffect(() => {
     bookmarkSet.current = new Set(bookmarks.map((b) => b.verseId));
@@ -109,7 +117,7 @@ export function BookmarksProvider({ children }: { children: ReactNode }) {
 
   /** Returns `true` if the given verse id is currently bookmarked. */
   const isBookmarked = useCallback(
-    (verseId: string) => bookmarkSet.current.has(verseId),
+    (verseId: string) => bookmarkSet.current?.has(verseId) ?? false,
     []
   );
 
@@ -164,15 +172,6 @@ export function BookmarksProvider({ children }: { children: ReactNode }) {
       )
     );
   }, []);
-
-  /** All unique tags across bookmarks, alphabetically sorted. */
-  const allTags = (() => {
-    const tagSet = new Set<string>();
-    for (const b of bookmarks) {
-      for (const t of b.tags ?? []) tagSet.add(t);
-    }
-    return [...tagSet].sort((a, b) => a.localeCompare(b));
-  })();
 
   // -- JSON export / import --------------------------------------------------
 
@@ -235,20 +234,36 @@ export function BookmarksProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const value = useMemo(() => {
+    const tagSet = new Set<string>();
+    for (const b of bookmarks) {
+      for (const t of b.tags ?? []) tagSet.add(t);
+    }
+    const allTags = [...tagSet].sort((a, b) => a.localeCompare(b));
+    return {
+      bookmarks,
+      isBookmarked,
+      toggleBookmark,
+      removeBookmark,
+      addTag,
+      removeTag,
+      allTags,
+      exportBookmarks,
+      importBookmarks,
+    };
+  }, [
+    bookmarks,
+    isBookmarked,
+    toggleBookmark,
+    removeBookmark,
+    addTag,
+    removeTag,
+    exportBookmarks,
+    importBookmarks,
+  ]);
+
   return (
-    <BookmarksContext.Provider
-      value={{
-        bookmarks,
-        isBookmarked,
-        toggleBookmark,
-        removeBookmark,
-        addTag,
-        removeTag,
-        allTags,
-        exportBookmarks,
-        importBookmarks,
-      }}
-    >
+    <BookmarksContext.Provider value={value}>
       {children}
     </BookmarksContext.Provider>
   );

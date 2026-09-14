@@ -13,6 +13,7 @@
  * response can never crash the app — missing data becomes `undefined`/`[]`.
  */
 
+import { cache } from "react";
 import type { Ang, HukamnamaInfo, SearchResult, VerseLine } from "./types";
 import { MAX_ANG, MIN_ANG } from "./types";
 
@@ -114,13 +115,16 @@ function mapVerse(raw: BaniDbVerseRaw, angNumber: number, index: number): VerseL
  * This runs at BUILD TIME for all 1430 Angs via `generateStaticParams` in
  * `app/ang/[id]/page.tsx`, so it is *not* called per-request in production.
  * The result is fully static; scripture text never changes.
+ * Wrapped in React's `cache()` so a single route (page body + metadata) only
+ * ever performs one network fetch.
  *
  * @param angNumber the Ang to load (1–1430)
  * @returns the mapped Ang, or `null` when out of range / API unreachable
  */
-export async function getAng(angNumber: number): Promise<Ang | null> {
-  // Reject out-of-range requests up-front instead of hitting the network.
-  if (angNumber < MIN_ANG || angNumber > MAX_ANG) return null;
+export const getAng = cache(
+  async function getAng(angNumber: number): Promise<Ang | null> {
+    // Reject out-of-range requests up-front instead of hitting the network.
+    if (angNumber < MIN_ANG || angNumber > MAX_ANG) return null;
 
   try {
     const res = await fetch(`${BANIDB_BASE}/angs/${angNumber}`, {
@@ -140,11 +144,12 @@ export async function getAng(angNumber: number): Promise<Ang | null> {
       lines: rows.map((raw, i) => mapVerse(raw, angNumber, i)),
     };
   } catch {
-    // Network failure, offline, or API downtime — fail soft so the page
-    // can render its not-found state gracefully instead of crashing.
-    return null;
+      // Network failure, offline, or API downtime — fail soft so the page
+      // can render its not-found state gracefully instead of crashing.
+      return null;
+    }
   }
-}
+);
 
 /**
  * Full-text search across all Angs via BaniDB's search endpoint.
@@ -236,52 +241,66 @@ export async function getHukamnama(): Promise<HukamnamaInfo | null> {
     year: "numeric",
   });
 
-  // -- 1) SGPC official page → today's scanned Hukamnama image ----------------
-  let sgpcImage: string | undefined;
-  try {
-    const res = await fetch(SGPC_HUKAMNAMA_URL, { next: { revalidate: 21600 } });
-    if (res.ok) {
+  /** Scrapes the SGPC page for the day's official Hukamnama scan image. */
+  const fetchSgpcScan = async (): Promise<string | undefined> => {
+    try {
+      const res = await fetch(SGPC_HUKAMNAMA_URL, { next: { revalidate: 21600 } });
+      if (!res.ok) return undefined;
       const html = await res.text();
       const raw =
         html.match(/<img[^>]+src="([^"]*hukamnama[^"]*\.(?:jpe?g|png|webp))"[^>]*>/i) ??
         html.match(/<img[^>]+src="([^"]*(?:storage\/\d{4}\/\d{2}\/)[^"]+\.(?:jpe?g|png|webp))"[^>]*>/i);
       const src = raw?.[1];
-      if (src) {
-        sgpcImage = src
-          .replace(/&amp;/g, "&")
-          .replace(/^\/\//, "https://");
-        if (!/^https?:/.test(sgpcImage)) sgpcImage = `https://www.sgpc.net${sgpcImage}`;
-      }
+      if (!src) return undefined;
+      const normalized = src.replace(/&amp;/g, "&").replace(/^\/\//, "https://");
+      return /^https?:/.test(normalized)
+        ? normalized
+        : `https://www.sgpc.net${normalized}`;
+    } catch {
+      // SGPC being unreachable must never crash the Home page — ignore failure.
+      return undefined;
     }
-  } catch {
-    // SGPC being unreachable must never crash the Home page — ignore failure.
-  }
+  };
 
-  // -- 2) BaniDB text mirror of the same daily selection ---------------------
-  try {
-    const url = `${BANIDB_BASE}/hukamnamas/${year}/${month}/${day}`;
-    const res = await fetch(url, { next: { revalidate: 21600 } });
-    if (!res.ok) return null;
+  /** Fetches BaniDB's text mirror of the same SGPC daily selection. */
+  const fetchBaniText = async (): Promise<HukamnamaInfo | null> => {
+    try {
+      const url = `${BANIDB_BASE}/hukamnamas/${year}/${month}/${day}`;
+      const res = await fetch(url, { next: { revalidate: 21600 } });
+      if (!res.ok) return null;
 
-    const data: BaniDbHukamnamaResponse = await res.json();
-    const shabad = data?.shabads?.[0];
-    if (!shabad) return null;
+      const data: BaniDbHukamnamaResponse = await res.json();
+      const shabad = data?.shabads?.[0];
+      if (!shabad) return null;
 
-    const info = shabad.shabadInfo ?? {};
-    const ang = info.pageNo ?? MIN_ANG;
-    const lines = (shabad.verses ?? []).map((raw, i) => mapVerse(raw, ang, i));
+      const info = shabad.shabadInfo ?? {};
+      const ang = info.pageNo ?? MIN_ANG;
+      const lines = (shabad.verses ?? []).map((raw, i) => mapVerse(raw, ang, i));
 
-    return {
-      dateLabel,
-      ang,
-      raag: info.raag?.english ?? undefined,
-      writer: info.writer?.english ?? undefined,
-      lines,
-      sgpcImage,
-      sgpcPage: SGPC_HUKAMNAMA_URL,
-      sourceNote: "Daily Hukamnama — Sri Darbar Sahib, Amritsar (via SGPC)",
-    };
-  } catch {
-    return null; // fail soft: no Hukamnama is better than a broken Home page
-  }
+      return {
+        dateLabel,
+        ang,
+        raag: info.raag?.english ?? undefined,
+        writer: info.writer?.english ?? undefined,
+        lines,
+        sgpcImage: undefined,
+        sgpcPage: SGPC_HUKAMNAMA_URL,
+        sourceNote: "Daily Hukamnama — Sri Darbar Sahib, Amritsar (via SGPC)",
+      };
+    } catch {
+      return null; // fail soft: no Hukamnama is better than a broken Home page
+    }
+  };
+
+  // -- Fetch the SGPC scan and the BaniDB text mirror concurrently -----------
+  const [sgpcResult, baniResult] = await Promise.allSettled([
+    fetchSgpcScan(),
+    fetchBaniText(),
+  ]);
+
+  if (baniResult.status === "rejected" || !baniResult.value) return null;
+  return {
+    ...baniResult.value,
+    sgpcImage: sgpcResult.status === "fulfilled" ? sgpcResult.value : undefined,
+  };
 }

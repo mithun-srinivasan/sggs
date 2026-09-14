@@ -18,7 +18,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -186,6 +186,15 @@ export default function HomePage() {
   /** Brief opacity animation while rotating between sacred verses. */
   const [isRotating, setIsRotating] = useState(false);
 
+  /** Rotation timer handle — cancelled on unmount to avoid stale setState. */
+  const rotateTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (rotateTimer.current) clearTimeout(rotateTimer.current);
+    },
+    []
+  );
+
   // -- Effects --------------------------------------------------------------
 
   /** Hydrate `lastReadAng` from localStorage once on mount. */
@@ -195,6 +204,7 @@ export default function HomePage() {
       if (saved) {
         const parsed = parseInt(saved, 10);
         if (!isNaN(parsed) && parsed >= MIN_ANG && parsed <= MAX_ANG) {
+          // eslint-disable-next-line react-hooks/set-state-in-effect -- deliberate post-mount hydration from localStorage (SSR-safe)
           setLastReadAng(parsed);
         }
       }
@@ -231,7 +241,8 @@ export default function HomePage() {
    */
   const nextSacredVerse = () => {
     setIsRotating(true);
-    setTimeout(() => {
+    if (rotateTimer.current) clearTimeout(rotateTimer.current);
+    rotateTimer.current = setTimeout(() => {
       setVerseIndex((prev) => (prev + 1) % SACRED_VERSES.length);
       setIsRotating(false);
     }, 150);
@@ -257,7 +268,7 @@ export default function HomePage() {
           src="/golden-temple-night.png"
           alt="Sri Harmandir Sahib (Golden Temple) at night"
           fill
-          priority
+          preload
           quality={90}
           sizes="100vw"
           className="object-cover object-center pointer-events-none"

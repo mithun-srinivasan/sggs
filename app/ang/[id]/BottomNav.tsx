@@ -14,7 +14,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -30,8 +30,9 @@ export default function BottomNav({
   /** Whether the bar is currently visible (auto-hidden on downward scroll). */
   const [visible, setVisible] = useState(true);
 
-  /** Previous scroll position — used to determine scroll *direction*. */
-  const [prevScrollY, setPrevScrollY] = useState(0);
+  /** Previous scroll position — used to determine scroll *direction*.
+   *  A ref (not state) so the scroll listener never re-registers per frame. */
+  const prevScrollY = useRef(0);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -41,19 +42,19 @@ export default function BottomNav({
       if (currentScrollY < 40) {
         setVisible(true);
       // Scrolling down → hide for distraction-free reading.
-      } else if (currentScrollY > prevScrollY + 5) {
+      } else if (currentScrollY > prevScrollY.current + 5) {
         setVisible(false);
       // Scrolling up → reveal immediately.
-      } else if (currentScrollY < prevScrollY - 5) {
+      } else if (currentScrollY < prevScrollY.current - 5) {
         setVisible(true);
       }
 
-      setPrevScrollY(currentScrollY);
+      prevScrollY.current = currentScrollY;
     };
 
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [prevScrollY]);
+  }, []);
 
   return (
     <footer

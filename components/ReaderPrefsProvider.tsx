@@ -30,6 +30,7 @@ import {
   useEffect,
   useState,
   useCallback,
+  useMemo,
   useRef,
   type ReactNode,
 } from "react";
@@ -99,11 +100,64 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-/** Whether the given JSON value looks like an object with the prefs' shape. */
+/**
+ * Whether the given JSON value looks like an object with the prefs' shape.
+ * Every field is validated against its allowed domain so corrupted or stale
+ * localStorage data can never break theming or the reader controls.
+ */
+const VALID_THEMES: ThemeMode[] = ["light", "dark", "sepia"];
+const VALID_TRANSLATIONS: TranslationLang[] = ["en", "pu"];
+const VALID_TRANSLIT_STYLES: TranslitStyle[] = ["en", "hi", "ur", "ipa"];
+const HEX_RE = /^#([0-9a-fA-F]{3}){1,2}$/;
+
 function sanitizePrefs(raw: unknown): ReaderPrefs {
   if (typeof raw !== "object" || raw === null) return DEFAULT_PREFS;
-  // Spread only the known keys so unknown/stale fields never leak through.
-  return { ...DEFAULT_PREFS, ...(raw as Partial<ReaderPrefs>) };
+
+  const prefs: ReaderPrefs = { ...DEFAULT_PREFS };
+  const candidate = raw as Partial<ReaderPrefs>;
+
+  if (typeof candidate.theme === "string" && (VALID_THEMES as string[]).includes(candidate.theme)) {
+    prefs.theme = candidate.theme;
+  }
+  if (
+    typeof candidate.translationLang === "string" &&
+    (VALID_TRANSLATIONS as string[]).includes(candidate.translationLang)
+  ) {
+    prefs.translationLang = candidate.translationLang;
+  }
+  if (
+    typeof candidate.translitStyle === "string" &&
+    (VALID_TRANSLIT_STYLES as string[]).includes(candidate.translitStyle)
+  ) {
+    prefs.translitStyle = candidate.translitStyle;
+  }
+  if (candidate.accentHex === null || (typeof candidate.accentHex === "string" && HEX_RE.test(candidate.accentHex))) {
+    prefs.accentHex = candidate.accentHex as string | null;
+  }
+  if (typeof candidate.fontScale === "number" && !Number.isNaN(candidate.fontScale)) {
+    prefs.fontScale = Math.min(1.6, Math.max(0.8, candidate.fontScale));
+  }
+
+  const boolKeys: Array<keyof ReaderPrefs> = [
+    "showTransliteration",
+    "showTranslation",
+    "isLareevarMode",
+    "isContinuousMode",
+    "isFocusMode",
+    "isAutoTheme",
+    "isOledTheme",
+    "isMemorizationMode",
+    "isParallelTranslations",
+    "showKanji",
+    "isTapToTranslit",
+  ];
+  for (const key of boolKeys) {
+    if (typeof candidate[key] === "boolean") {
+      (prefs as unknown as Record<string, unknown>)[key] = candidate[key];
+    }
+  }
+
+  return prefs;
 }
 
 export function ReaderPrefsProvider({ children }: { children: ReactNode }) {
@@ -128,6 +182,7 @@ export function ReaderPrefsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- deliberate SSR-safe post-mount hydration from localStorage
       if (raw) setPrefs(sanitizePrefs(JSON.parse(raw)));
     } catch {
       // Malformed localStorage data is ignored; defaults are used instead.
@@ -169,6 +224,7 @@ export function ReaderPrefsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- seed state from matchMedia, then subscribe to its changes
     setSystemDark(mq.matches);
     const handler = (e: MediaQueryListEvent) => setSystemDark(e.matches);
     mq.addEventListener("change", handler);
@@ -229,45 +285,66 @@ export function ReaderPrefsProvider({ children }: { children: ReactNode }) {
 
   // -- Context value: memoized setters compose the public API ----------------
 
-  const value: ReaderPrefsContextValue = {
-    ...prefs,
-    setTheme: (theme) => setPrefs((p) => ({ ...p, theme })),
-    toggleTransliteration: () =>
-      setPrefs((p) => ({ ...p, showTransliteration: !p.showTransliteration })),
-    toggleTranslation: () =>
-      setPrefs((p) => ({ ...p, showTranslation: !p.showTranslation })),
-    setTranslationLang: (translationLang) =>
-      setPrefs((p) => ({ ...p, translationLang })),
-    increaseFontSize: () =>
+  const value = useMemo((): ReaderPrefsContextValue => {
+    const setTheme = (theme: ThemeMode) => setPrefs((p) => ({ ...p, theme }));
+    const toggleTransliteration = () =>
+      setPrefs((p) => ({ ...p, showTransliteration: !p.showTransliteration }));
+    const toggleTranslation = () =>
+      setPrefs((p) => ({ ...p, showTranslation: !p.showTranslation }));
+    const setTranslationLang = (translationLang: TranslationLang) =>
+      setPrefs((p) => ({ ...p, translationLang }));
+    const increaseFontSize = () =>
       setPrefs((p) => ({
         ...p,
         fontScale: Math.min(1.6, +(p.fontScale + 0.1).toFixed(2)),
-      })),
-    decreaseFontSize: () =>
+      }));
+    const decreaseFontSize = () =>
       setPrefs((p) => ({
         ...p,
         fontScale: Math.max(0.8, +(p.fontScale - 0.1).toFixed(2)),
-      })),
-    toggleLareevarMode: () =>
-      setPrefs((p) => ({ ...p, isLareevarMode: !p.isLareevarMode })),
-    toggleContinuousMode: () =>
-      setPrefs((p) => ({ ...p, isContinuousMode: !p.isContinuousMode })),
-    toggleFocusMode: () =>
-      setPrefs((p) => ({ ...p, isFocusMode: !p.isFocusMode })),
-    toggleAutoTheme: () =>
-      setPrefs((p) => ({ ...p, isAutoTheme: !p.isAutoTheme })),
-    toggleOledTheme: () =>
-      setPrefs((p) => ({ ...p, isOledTheme: !p.isOledTheme })),
-    setAccentHex: (accentHex) => setPrefs((p) => ({ ...p, accentHex })),
-    toggleMemorizationMode: () =>
-      setPrefs((p) => ({ ...p, isMemorizationMode: !p.isMemorizationMode })),
-    toggleParallelTranslations: () =>
-      setPrefs((p) => ({ ...p, isParallelTranslations: !p.isParallelTranslations })),
-    toggleKanji: () => setPrefs((p) => ({ ...p, showKanji: !p.showKanji })),
-    toggleTapToTranslit: () =>
-      setPrefs((p) => ({ ...p, isTapToTranslit: !p.isTapToTranslit })),
-    setTranslitStyle: (translitStyle) => setPrefs((p) => ({ ...p, translitStyle })),
-  };
+      }));
+    const toggleLareevarMode = () =>
+      setPrefs((p) => ({ ...p, isLareevarMode: !p.isLareevarMode }));
+    const toggleContinuousMode = () =>
+      setPrefs((p) => ({ ...p, isContinuousMode: !p.isContinuousMode }));
+    const toggleFocusMode = () =>
+      setPrefs((p) => ({ ...p, isFocusMode: !p.isFocusMode }));
+    const toggleAutoTheme = () =>
+      setPrefs((p) => ({ ...p, isAutoTheme: !p.isAutoTheme }));
+    const toggleOledTheme = () =>
+      setPrefs((p) => ({ ...p, isOledTheme: !p.isOledTheme }));
+    const setAccentHex = (accentHex: string | null) => setPrefs((p) => ({ ...p, accentHex }));
+    const toggleMemorizationMode = () =>
+      setPrefs((p) => ({ ...p, isMemorizationMode: !p.isMemorizationMode }));
+    const toggleParallelTranslations = () =>
+      setPrefs((p) => ({ ...p, isParallelTranslations: !p.isParallelTranslations }));
+    const toggleKanji = () => setPrefs((p) => ({ ...p, showKanji: !p.showKanji }));
+    const toggleTapToTranslit = () =>
+      setPrefs((p) => ({ ...p, isTapToTranslit: !p.isTapToTranslit }));
+    const setTranslitStyle = (translitStyle: TranslitStyle) =>
+      setPrefs((p) => ({ ...p, translitStyle }));
+
+    return {
+      ...prefs,
+      setTheme,
+      toggleTransliteration,
+      toggleTranslation,
+      setTranslationLang,
+      increaseFontSize,
+      decreaseFontSize,
+      toggleLareevarMode,
+      toggleContinuousMode,
+      toggleFocusMode,
+      toggleAutoTheme,
+      toggleOledTheme,
+      setAccentHex,
+      toggleMemorizationMode,
+      toggleParallelTranslations,
+      toggleKanji,
+      toggleTapToTranslit,
+      setTranslitStyle,
+    };
+  }, [prefs]);
 
   return (
     <ReaderPrefsContext.Provider value={value}>

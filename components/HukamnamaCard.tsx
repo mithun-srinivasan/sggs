@@ -128,6 +128,10 @@ export default function HukamnamaCard() {
             <img
               src={hukamnama.sgpcImage}
               alt="Official SGPC Daily Hukamnama"
+              loading="lazy"
+              decoding="async"
+              width={180}
+              height={240}
               className="h-auto w-full object-cover"
             />
           </a>

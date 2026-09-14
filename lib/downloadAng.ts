@@ -11,6 +11,8 @@
  *   Blank line
  */
 
+"use client";
+
 import type { VerseLine } from "./types";
 
 /** The available translation languages to include in the download. */

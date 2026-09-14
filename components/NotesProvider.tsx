@@ -17,6 +17,7 @@ import {
   useEffect,
   useState,
   useCallback,
+  useMemo,
   useRef,
   type ReactNode,
 } from "react";
@@ -51,7 +52,10 @@ export function NotesProvider({ children }: { children: ReactNode }) {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) setNotes(parsed);
+        if (Array.isArray(parsed)) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- deliberate SSR-safe post-mount hydration from localStorage
+        setNotes(parsed);
+      }
       }
     } catch {
       // corrupted storage is ignored
@@ -103,8 +107,13 @@ export function NotesProvider({ children }: { children: ReactNode }) {
     setNotes((prev) => prev.filter((n) => n.verseId !== verseId));
   }, []);
 
+  const value = useMemo(
+    () => ({ notes, getNote, setNote, removeNote }),
+    [notes, getNote, setNote, removeNote]
+  );
+
   return (
-    <NotesContext.Provider value={{ notes, getNote, setNote, removeNote }}>
+    <NotesContext.Provider value={value}>
       {children}
     </NotesContext.Provider>
   );

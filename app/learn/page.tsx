@@ -11,7 +11,7 @@
 
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Check, X, RotateCw, Trophy } from "lucide-react";
 import { AKHARS, shuffleAkhar } from "@/lib/gurmukhi";
@@ -47,8 +47,18 @@ export default function LearnPage() {
 
   /** Generate the first round after mount (avoids SSR/CSR mismatch from RNG). */
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- first round depends on client-only Math.random()
     setRound(buildRound());
   }, []);
+
+  /** Next-round timer handle — cancelled on unmount to avoid stale setState. */
+  const roundTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (roundTimer.current) clearTimeout(roundTimer.current);
+    },
+    []
+  );
 
   /** Grades the pick and schedules the next round. */
   const choose = useCallback(
@@ -66,7 +76,8 @@ export default function LearnPage() {
       } else {
         setStreak(0);
       }
-      setTimeout(() => {
+      if (roundTimer.current) clearTimeout(roundTimer.current);
+      roundTimer.current = setTimeout(() => {
         setPicked(null);
         setRound(buildRound());
       }, 900);

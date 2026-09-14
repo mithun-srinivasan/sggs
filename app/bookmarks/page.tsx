@@ -19,7 +19,7 @@
 
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -58,6 +58,15 @@ export default function BookmarksPage() {
   /** Per-editor draft tag text. */
   const [tagDraft, setTagDraft] = useState("");
 
+  /** Import-feedback timer handle — cancelled on unmount. */
+  const importTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (importTimer.current) clearTimeout(importTimer.current);
+    },
+    []
+  );
+
   /** Unique tags in use (already sorted by the provider). */
   const tags = allTags;
 
@@ -76,12 +85,17 @@ export default function BookmarksPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const setImportStatusSoon = (status: "success" | "error") => {
+      setImportStatus(status);
+      if (importTimer.current) clearTimeout(importTimer.current);
+      importTimer.current = setTimeout(() => setImportStatus("idle"), 3000);
+    };
+
     const reader = new FileReader();
     reader.onload = (event) => {
       const text = event.target?.result as string;
       const success = importBookmarks(text);
-      setImportStatus(success ? "success" : "error");
-      setTimeout(() => setImportStatus("idle"), 3000);
+      setImportStatusSoon(success ? "success" : "error");
     };
     reader.readAsText(file);
 

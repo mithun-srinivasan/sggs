@@ -20,7 +20,7 @@
 
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useState, useEffect, useCallback, type FormEvent } from "react";
+import { useState, useEffect, useCallback, useRef, type FormEvent } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -42,14 +42,23 @@ export default function NavigationBar({ angNumber }: { angNumber: number }) {
   /** The raw text inside the Ang number input field. */
   const [inputValue, setInputValue] = useState(String(angNumber));
 
+  /** The Ang number the current `inputValue` was derived from.  Lets the input
+   *  reset to match *navigation* while still letting the user type freely. */
+  const [prevAngNumber, setPrevAngNumber] = useState(angNumber);
+  if (prevAngNumber !== angNumber) {
+    setPrevAngNumber(angNumber);
+    setInputValue(String(angNumber));
+  }
+
   /** Whether the ReaderControls popover is open. */
   const [controlsOpen, setControlsOpen] = useState(false);
 
   /** Visibility state for the scroll-aware auto-hide behaviour. */
   const [visible, setVisible] = useState(true);
 
-  /** The previous scroll position — needed to determine scroll *direction*. */
-  const [prevScrollY, setPrevScrollY] = useState(0);
+  /** The previous scroll position — needed to determine scroll *direction*.
+   *  A ref (not state) so the scroll listener never re-registers per frame. */
+  const prevScrollY = useRef(0);
 
   /** Whether the document is currently in fullscreen mode. */
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -57,7 +66,6 @@ export default function NavigationBar({ angNumber }: { angNumber: number }) {
   // -- Sync input + persist last-read Ang to localStorage --------------------
 
   useEffect(() => {
-    setInputValue(String(angNumber));
     try {
       localStorage.setItem("sggs_last_ang", String(angNumber));
     } catch {
@@ -98,19 +106,19 @@ export default function NavigationBar({ angNumber }: { angNumber: number }) {
       if (currentScrollY < 40) {
         setVisible(true);
       // Scrolled down more than 5px → hide for distraction-free reading.
-      } else if (currentScrollY > prevScrollY + 5) {
+      } else if (currentScrollY > prevScrollY.current + 5) {
         setVisible(false);
       // Scrolled up more than 5px → reveal immediately.
-      } else if (currentScrollY < prevScrollY - 5) {
+      } else if (currentScrollY < prevScrollY.current - 5) {
         setVisible(true);
       }
 
-      setPrevScrollY(currentScrollY);
+      prevScrollY.current = currentScrollY;
     };
 
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [prevScrollY, controlsOpen]);
+  }, [controlsOpen]);
 
   // -- Navigation helpers ---------------------------------------------------
 

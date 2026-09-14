@@ -9,7 +9,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Printer, FileDown, Check, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import type { VerseLine } from "@/lib/types";
@@ -24,6 +24,15 @@ export default function PrintAng({
 }) {
   const [downloaded, setDownloaded] = useState(false);
 
+  /** "Saved" feedback timer handle — cancelled on unmount. */
+  const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
+    },
+    []
+  );
+
   const handlePrint = () => {
     window.print();
   };
@@ -32,7 +41,8 @@ export default function PrintAng({
     const text = angToText(angNumber, lines, true, ["en", "pu"]);
     downloadText(`sggs-ang-${angNumber}.txt`, text);
     setDownloaded(true);
-    setTimeout(() => setDownloaded(false), 2500);
+    if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
+    feedbackTimer.current = setTimeout(() => setDownloaded(false), 2500);
   };
 
   return (

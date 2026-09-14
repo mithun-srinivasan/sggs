@@ -19,6 +19,7 @@ import {
   useEffect,
   useState,
   useCallback,
+  useMemo,
   useRef,
   type ReactNode,
 } from "react";
@@ -53,7 +54,10 @@ export function HighlightsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) setHighlights(JSON.parse(raw));
+      if (raw) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- deliberate SSR-safe post-mount hydration from localStorage
+        setHighlights(JSON.parse(raw));
+      }
     } catch {
       // corrupted storage
     } finally {
@@ -97,10 +101,13 @@ export function HighlightsProvider({ children }: { children: ReactNode }) {
 
   const clearAll = useCallback(() => setHighlights({}), []);
 
+  const value = useMemo(
+    () => ({ highlights, getHighlight, toggleHighlight, clearAll }),
+    [highlights, getHighlight, toggleHighlight, clearAll]
+  );
+
   return (
-    <HighlightsContext.Provider
-      value={{ highlights, getHighlight, toggleHighlight, clearAll }}
-    >
+    <HighlightsContext.Provider value={value}>
       {children}
     </HighlightsContext.Provider>
   );

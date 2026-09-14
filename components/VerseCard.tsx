@@ -23,7 +23,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Bookmark,
   BookmarkCheck,
@@ -37,7 +37,7 @@ import {
 import type { HighlightColor, VerseLine } from "@/lib/types";
 import { useReaderPrefs } from "./ReaderPrefsProvider";
 import { useBookmarks } from "./BookmarksProvider";
-import { useHighlights } from "./HighlightsProvider";
+import { useHighlights, HIGHLIGHT_COLORS } from "./HighlightsProvider";
 import { useVerseNotes } from "./NotesProvider";
 
 /** The four highlight colours → translucent background tints. */
@@ -84,6 +84,15 @@ export default function VerseCard({
   /** "Shared!" confirmation flag. */
   const [shared, setShared] = useState(false);
 
+  /** Shared timer handle so confirmation flags never update after unmount. */
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    },
+    []
+  );
+
   const saved = isBookmarked(line.id);
   const highlight = getHighlight(line.id);
   const note = getNote(line.id);
@@ -95,11 +104,11 @@ export default function VerseCard({
     line.transliterations[prefs.translitStyle] || line.transliteration;
 
   /** Word-aligned pairs [gurmukhiWord, translitWord]; empty when lengths differ. */
-  const wordPairs = (() => {
+  const wordPairs = useMemo(() => {
     const gk = line.gurmukhi.split(/\s+/).filter(Boolean);
     const tr = translit.split(/\s+/).filter(Boolean);
     return gk.length === tr.length ? gk.map((g, i) => [g, tr[i]]) : [];
-  })();
+  }, [line.gurmukhi, translit]);
 
   // -- Translations ---------------------------------------------------------------------
 
@@ -109,11 +118,6 @@ export default function VerseCard({
    */
   const primaryTranslation = line.translations[prefs.translationLang];
   const punjabiTranslation = line.translations["pu"];
-
-  /** Japanese-style "Kanji" here refers to the classic Sikh commentary: the
-   * Punjabi translation by Prof. Sahib Singh (Guru Granth Darpan).  BaniDB
-   * serves this exactly through the `pu` translation key. */
-  const kanji = punjabiTranslation;
 
   // -- Gurmukhi display -----------------------------------------------------------------
 
@@ -139,7 +143,8 @@ export default function VerseCard({
         .join("\n");
       await navigator.clipboard.writeText(textToCopy);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => setCopied(false), 2000);
     } catch {
       // Non-critical: clipboard may be blocked in some contexts.
     }
@@ -236,7 +241,8 @@ export default function VerseCard({
       document.body.removeChild(a);
 
       setShared(true);
-      setTimeout(() => setShared(false), 2000);
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => setShared(false), 2000);
     } catch {
       // Canvas rendering is best-effort; failure is silently ignored.
     }
@@ -244,9 +250,7 @@ export default function VerseCard({
 
   return (
     <article
-      className={`group scroll-mt-20 rounded-xl border-b border-[var(--border-subtle)] p-4 transition-colors sm:p-6 ${
-        highlight ? "hover:bg-[var(--surface-hover)]" : "hover:bg-[var(--surface-hover)]"
-      }`}
+      className={`group scroll-mt-20 rounded-xl border-b border-[var(--border-subtle)] p-4 transition-colors sm:p-6 hover:bg-[var(--surface-hover)]`}
       style={{
         fontSize: `${prefs.fontScale}rem`,
         ...(highlight ? { backgroundColor: HIGHLIGHT_TINTS[highlight] } : {}),
@@ -269,7 +273,7 @@ export default function VerseCard({
       >
         {hiddenMemorize ? (
           <span dir="auto" lang="pa">
-            ੴ ॥ {angNumber > 0 ? line.gurmukhi.split(/\s/).map(() => "—").join(" ") : ""}
+            ੴ ॥ {line.gurmukhi.split(/\s+/).filter(Boolean).map(() => "—").join(" ")}
           </span>
         ) : gurmukhiText}
       </p>
@@ -352,14 +356,15 @@ export default function VerseCard({
         )
       )}
 
-      {/* Kanji / commentary block (feature 21): Prof. Sahib Singh commentary */}
-      {prefs.showKanji && kanji && (
+      {/* Kanji / commentary block — Prof. Sahib Singh (Guru Granth Darpan), served
+      by BaniDB through the `pu` translation key. */}
+      {prefs.showKanji && punjabiTranslation && (
         <div className={`verse-extra mt-4 rounded-lg border-l-2 border-[var(--accent)] bg-[var(--accent-light)]/40 px-3 py-2 ${hiddenMemorize ? "blur-sm select-none" : ""}`}>
           <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--accent)]">
             Kanji · Guru Granth Darpan (Prof. Sahib Singh)
           </p>
           <p dir="auto" lang="pa" className="font-gurmukhi mt-1 text-[0.9em] leading-relaxed text-[var(--text-secondary)]">
-            {kanji}
+            {punjabiTranslation}
           </p>
         </div>
       )}
@@ -434,7 +439,7 @@ export default function VerseCard({
             </button>
             {highlightOpen && (
               <div className="absolute bottom-12 right-0 z-20 flex gap-1.5 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-2 shadow-[var(--shadow-popover)] animate-in fade-in zoom-in-95">
-                {(["saffron", "green", "blue", "rose"] as HighlightColor[]).map((c) => (
+                {HIGHLIGHT_COLORS.map((c) => (
                   <button
                     key={c}
                     onClick={() => {
