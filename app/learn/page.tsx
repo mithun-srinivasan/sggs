@@ -3,7 +3,9 @@
  * ---------------------------------------------------------------------------
  * "Learn Gurmukhi" practice page (feature 22).
  *
- * A lightweight multiple-choice quiz: a random Gurmukhi akhar is shown and the
+ * A full Gurmukhi chart (all akhars grouped traditionally, plus the ten
+ * lagan-matra vowel signs — each with its English transliteration) sits above
+ * a lightweight multiple-choice quiz: a random Gurmukhi akhar is shown and the
  * reader picks its correct Roman transliteration from four options.  Progress
  * (rounds played, correct answers, best streak) is kept in component state —
  * no persistence needed for a quick practice session.
@@ -14,8 +16,23 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Check, X, RotateCw, Trophy } from "lucide-react";
-import { AKHARS, shuffleAkhar } from "@/lib/gurmukhi";
+import { AKHARS, LAGAN_MATRA, shuffleAkhar } from "@/lib/gurmukhi";
 import { useReaderPrefs } from "@/components/ReaderPrefsProvider";
+
+/**
+ * The full akhar chart, grouped the traditional way (vowels, five vargas,
+ * final letters) so learners can study the script before testing themselves.
+ * Slices mirror the order of `AKHARS` in `lib/gurmukhi.ts`.
+ */
+const AKHAR_GROUPS: { title: string; items: typeof AKHARS }[] = [
+  { title: "Vowels", items: AKHARS.slice(0, 6) },
+  { title: "Ka Varga", items: AKHARS.slice(6, 11) },
+  { title: "Cha Varga", items: AKHARS.slice(11, 16) },
+  { title: "Tta Varga", items: AKHARS.slice(16, 21) },
+  { title: "Ta Varga", items: AKHARS.slice(21, 26) },
+  { title: "Pa Varga", items: AKHARS.slice(26, 31) },
+  { title: "Antim Akhar", items: AKHARS.slice(31) },
+];
 
 /** A single quiz round: the prompt letter + 4 shuffled answer options. */
 interface Round {
@@ -118,7 +135,65 @@ export default function LearnPage() {
       </header>
 
       <main className="mx-auto max-w-2xl px-5 py-10 sm:px-8">
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)]/80 p-8 text-center shadow-[var(--shadow-subtle)]">
+        {/* Full Gurmukhi chart — study first, then test yourself below. */}
+        <section
+          aria-label="Full Gurmukhi chart"
+          className="rounded-2xl border border-[var(--border)] bg-[var(--surface)]/80 p-6 shadow-[var(--shadow-subtle)] sm:p-8"
+        >
+          <h2 className="text-center text-sm font-bold text-[var(--text)]">
+            Full Gurmukhi Chart
+          </h2>
+          <p className="mt-1 text-center text-xs text-[var(--text-muted)]">
+            Learn each letter with its English transliteration, then test yourself in the quiz below.
+          </p>
+
+          {AKHAR_GROUPS.map(({ title, items }) => (
+            <div key={title} className="mt-6">
+              <h3 className="text-[11px] font-bold uppercase tracking-widest text-[var(--text-faint)]">
+                {title}
+              </h3>
+              <div className="mt-2 grid grid-cols-5 gap-2 sm:grid-cols-7">
+                {items.map(({ gurmukhi, roman }) => (
+                  <div
+                    key={gurmukhi}
+                    lang="pa"
+                    className="rounded-xl border border-[var(--border)] bg-[var(--bg)] px-1 py-2.5 text-center transition hover:border-[var(--accent)]"
+                  >
+                    <p className="font-gurmukhi text-2xl font-semibold leading-none text-[var(--text)]">
+                      {gurmukhi}
+                    </p>
+                    <p className="mt-1.5 text-[11px] font-semibold text-[var(--accent)]">{roman}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+
+          {/* Dependent vowel signs (lagan-matra) with ਕ-based examples. */}
+          <div className="mt-6">
+            <h3 className="text-[11px] font-bold uppercase tracking-widest text-[var(--text-faint)]">
+              Vowel Signs · Lagan-Matra
+            </h3>
+            <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-5">
+              {LAGAN_MATRA.map(({ sign, name, example, roman }) => (
+                <div
+                  key={sign}
+                  lang="pa"
+                  className="rounded-xl border border-[var(--border)] bg-[var(--bg)] px-2 py-2.5 text-center transition hover:border-[var(--accent)]"
+                >
+                  <p className="font-gurmukhi text-xl font-semibold leading-none text-[var(--text)]">
+                    {example}{" "}
+                    <span className="text-[var(--text-faint)]">({sign})</span>
+                  </p>
+                  <p className="mt-1.5 text-[11px] font-semibold text-[var(--accent)]">{roman}</p>
+                  <p className="text-[10px] text-[var(--text-muted)]">{name}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)]/80 p-8 text-center shadow-[var(--shadow-subtle)] mt-8">
           <p className="text-xs font-semibold uppercase tracking-widest text-[var(--text-faint)]">
             Which transliteration matches?
           </p>

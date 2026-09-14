@@ -74,6 +74,10 @@ export default function GurpurabCalendar() {
                     <p className="text-[10px] text-[var(--text-faint)]">
                       {days === 0 ? "today" : `in ${days}d`}
                     </p>
+                    {/* Target Ang chip — makes the link destination explicit. */}
+                    <p className="mt-1 inline-block rounded-md bg-[var(--accent-light)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--accent)]">
+                      Ang {gurpurab.ang}
+                    </p>
                   </div>
                   <ArrowRight size={13} className="text-[var(--accent)]" />
                 </div>

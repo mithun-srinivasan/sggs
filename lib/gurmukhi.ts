@@ -52,6 +52,32 @@ export const AKHARS: GurmukhiAkhar[] = [
   { gurmukhi: "ਹ", roman: "ha" },
 ];
 
+/** A dependent vowel sign (lagan-matra) shown on the Learn chart with an example. */
+export interface LaganMatra {
+  /** The sign as typed after a consonant (e.g. "ਾ"). */
+  sign: string;
+  /** English name of the sign (e.g. "Kanna"). */
+  name: string;
+  /** Example syllable on ਕ (e.g. "ਕਾ"). */
+  example: string;
+  /** Roman transliteration of the example (e.g. "kaa"). */
+  roman: string;
+}
+
+/** The ten dependent vowel signs with ਕ-based examples and romanisations. */
+export const LAGAN_MATRA: LaganMatra[] = [
+  { sign: "ਾ", name: "Kanna", example: "ਕਾ", roman: "kaa" },
+  { sign: "ਿ", name: "Sihari", example: "ਕਿ", roman: "ki" },
+  { sign: "ੀ", name: "Bihari", example: "ਕੀ", roman: "kee" },
+  { sign: "ੁ", name: "Onkar", example: "ਕੁ", roman: "ku" },
+  { sign: "ੂ", name: "Dulankar", example: "ਕੂ", roman: "koo" },
+  { sign: "ੇ", name: "Lava", example: "ਕੇ", roman: "kay" },
+  { sign: "ੈ", name: "Dulava", example: "ਕੈ", roman: "kai" },
+  { sign: "ੋ", name: "Hora", example: "ਕੋ", roman: "ko" },
+  { sign: "ੌ", name: "Kanaura", example: "ਕੌ", roman: "kau" },
+  { sign: "ੰ", name: "Bindi", example: "ਕੰ", roman: "kan" },
+];
+
 /** Populates a multiple-choice question round; shuffled by the component. */
 export function shuffleAkhar<T>(arr: T[]): T[] {
   const copy = [...arr];

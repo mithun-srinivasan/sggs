@@ -11,91 +11,112 @@
 
 import type { Gurpurab } from "./types";
 
-/** The major Gurpurabs celebrated through the Nanakshahi year. */
+/**
+ * The major Gurpurabs celebrated through the Nanakshahi year.
+ *
+ * Each `ang` was verified against the live BaniDB text (raag + writer +
+ * opening lines) so every card lands on that event's own Bani where it
+ * exists in Sri Guru Granth Sahib Ji:
+ *   - Ang 1   → Japji Sahib (Guru Nanak Dev Ji)
+ *   - Ang 139 → Bani of Guru Angad Dev Ji
+ *   - Ang 773 → Lavan, Soohi Chhant (Guru Ram Das Ji)
+ *   - Ang 917 → Anand Sahib, Raamkali (Guru Amar Das Ji)
+ *   - Ang 262 → Sukhmani Sahib, Gauri (Guru Arjan Dev Ji)
+ *   - Ang 631 → Sorath Bani of Guru Tegh Bahaadur Ji
+ *   - Ang 10  → Sodar / So Purakh from evening Rehras (daily Nitnem)
+ *
+ * Gurus with no Bani in Sri Guru Granth Sahib Ji (their compositions live in
+ * the Dasam Granth, outside this reader's scope) link to a thematically
+ * related Ang instead, and their descriptions say so honestly.
+ */
 export const GURPURABS: Gurpurab[] = [
   {
     name: "Parkash Gurpurab — Sri Guru Nanak Dev Ji",
     month: 4,
     day: 15,
     ang: 1,
-    description: "Birth anniversary of the founder of Sikhism; Japji Sahib is created.",
+    description: "Birth of the First Guru — opens with Japji Sahib, his own Bani.",
   },
   {
     name: "Parkash Gurpurab — Sri Guru Gobind Singh Ji",
     month: 1,
     day: 6,
-    ang: 10, // Japji proximity; links to an early Ang
-    description: "Birth anniversary of the Tenth Guru; founder of the Khalsa.",
+    ang: 10,
+    description:
+      "Birth of the Tenth Guru, founder of the Khalsa — So Purakh from evening Rehras, part of the daily Khalsa Nitnem.",
   },
   {
     name: "Jor Mela — Sri Guru Tegh Bahaadur Ji (Shaheedi)",
     month: 6,
     day: 24,
-    ang: 631, // Raag Sorath of Guru Tegh Bahaadur Ji
-    description: "Martyrdom of the Ninth Guru in Delhi.",
+    ang: 631,
+    description: "Martyrdom of the Ninth Guru in Delhi — Sorath Bani of Guru Tegh Bahaadur Ji.",
   },
   {
     name: "Shaheedi Diwas — Sri Guru Arjan Dev Ji",
     month: 6,
     day: 16,
-    ang: 262, // Sukhmani Sahib
-    description: "Martyrdom of the Fifth Guru in Lahore.",
+    ang: 262,
+    description: "Martyrdom of the Fifth Guru in Lahore — Sukhmani Sahib, his own Bani.",
   },
   {
     name: "Khalsa Sajna — Vaisakhi",
     month: 4,
     day: 13,
-    ang: 139, // Raag Gauri (Swayyie of the Gurus)
-    description: "The Khalsa Panth established by Guru Gobind Singh Ji in 1699.",
+    ang: 917,
+    description:
+      "The Khalsa Panth established in 1699 — Anand Sahib, recited at every Amrit Sanchar.",
   },
   {
     name: "Guru Amar Das Ji — Parkash",
     month: 5,
     day: 5,
-    ang: 917, // Anand Sahib
-    description: "Birth anniversary of the Third Guru; composer of Anand Sahib.",
+    ang: 917,
+    description: "Birth of the Third Guru — Anand Sahib, his own composition.",
   },
   {
     name: "Guru Hargobind Ji — Bandi Chhor Divas",
     month: 10,
     day: 27,
-    ang: 14, // Sri Raag
-    description: "Release of the Sixth Guru and 52 princes from Gwalior Fort.",
+    ang: 14,
+    description:
+      "Release of the Sixth Guru and 52 princes from Gwalior Fort — related reading in Sri Raag.",
   },
   {
     name: "Guru Ramdas Ji — Parkash",
     month: 9,
     day: 24,
-    ang: 622, // Gauri Sukhmani vicinity
-    description: "Birth anniversary of the Fourth Guru; founder of Amritsar.",
+    ang: 773,
+    description:
+      "Birth of the Fourth Guru, founder of Amritsar — Lavan (Soohi), his own composition.",
   },
   {
     name: "Guru Angad Dev Ji — Parkash",
     month: 3,
     day: 31,
-    ang: 14,
-    description: "Birth anniversary of the Second Guru.",
+    ang: 139,
+    description: "Birth of the Second Guru — Bani of Guru Angad Dev Ji.",
   },
   {
     name: "Guru Har Rai Ji — Parkash",
     month: 1,
     day: 26,
     ang: 217,
-    description: "Birth anniversary of the Seventh Guru.",
+    description: "Birth of the Seventh Guru — related reading in Raag Gauri.",
   },
   {
     name: "Guru Harkrishan Ji — Parkash",
     month: 7,
     day: 7,
-    ang: 217,
-    description: "Birth anniversary of the Eighth Guru, the youngest Guru.",
+    ang: 262,
+    description: "Birth of the Eighth Guru — Sukhmani Sahib, the prayer of peace.",
   },
   {
     name: "Guru Nanak Dev Ji — Jyoti Jot",
     month: 9,
     day: 22,
     ang: 1,
-    description: "Passing (Jyoti Jot) of the First Guru.",
+    description: "Passing (Jyoti Jot) of the First Guru — Japji Sahib, his own Bani.",
   },
 ];
 
