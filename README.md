@@ -172,4 +172,3 @@ Invalid Ang numbers show the custom not-found page and link back to Ang 1.
 
 This project uses the BaniDB API for scripture data. Review the API's current
 terms and attribution requirements before deploying the application publicly.
-# sggs
