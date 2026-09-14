@@ -13,7 +13,6 @@ const THEMES: { id: ThemeMode; label: string; icon: typeof Sun }[] = [
 const LANGS: { id: TranslationLang; label: string }[] = [
   { id: "en", label: "English" },
   { id: "pu", label: "Punjabi" },
-  { id: "es", label: "Spanish" },
 ];
 
 export default function ReaderControls() {

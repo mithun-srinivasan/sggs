@@ -37,7 +37,6 @@ function mapVerse(raw: BaniDbVerseRaw, angNumber: number, index: number): VerseL
       en: raw.translation?.en?.bdb ?? undefined,
       // Punjabi translation via BaniDB's pu.ss.unicode path
       pu: raw.translation?.pu?.ss?.unicode ?? raw.translation?.pu?.ss?.gurmukhi ?? undefined,
-      es: raw.translation?.es?.sn ?? undefined,
     },
     // null-guard: writer object or its english field may be null/absent
     writer: raw.writer?.english ?? undefined,

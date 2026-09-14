@@ -55,7 +55,8 @@ The available npm scripts are:
 - Fetches Ang data from BaniDB's `/v2/angs/:id` endpoint.
 - Displays Unicode Gurmukhi, transliteration, writer metadata when available,
   and line numbers when provided by the API.
-- Shows English, Punjabi, or Spanish translation when that translation exists.
+- Shows English or Punjabi translation when that translation exists.
+- Streams per-Ang audio from a public archive when a recording is available.
 - Copies a verse and its available supporting text to the clipboard.
 - Saves individual verses as bookmarks.
 - Provides previous and next controls in the top and bottom navigation bars.
@@ -70,7 +71,7 @@ The settings panel supports:
 
 - Showing or hiding transliteration
 - Showing or hiding translations
-- Selecting English, Punjabi, or Spanish translations
+- Selecting English or Punjabi translations
 - Increasing or decreasing text size from 80% to 160%
 - Light, dark, and sepia themes
 
@@ -165,8 +166,7 @@ Invalid Ang numbers show the custom not-found page and link back to Ang 1.
 - Bookmarks and preferences are browser-local and have no account or sync
   system.
 - Search depends on the BaniDB service and network availability.
-- The reader does not currently provide built-in audio playback.
-- There is no automated test suite in the repository yet.
+- Audio playback depends on public archive availability per Ang; not all Angs have recordings.
 
 ## License and attribution
 

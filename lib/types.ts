@@ -1,7 +1,7 @@
 // lib/types.ts
 
 /** Which translation language is currently selected for display */
-export type TranslationLang = "en" | "pu" | "es";
+export type TranslationLang = "en" | "pu";
 
 /**
  * A single line/verse (tuk) within an Ang, mapped from BaniDB's response shape.
@@ -13,7 +13,6 @@ export interface VerseLine {
   translations: {
     en?: string;            // English translation
     pu?: string;             // Punjabi translation
-    es?: string;              // Spanish translation
   };
   writer?: string;         // optional — e.g. "Guru Nanak Dev Ji" (null-guarded on fetch + render)
   pageNo?: number;
