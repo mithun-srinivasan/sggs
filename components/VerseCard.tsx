@@ -19,6 +19,10 @@
  *  21.  Text & commentary — a genuine, attributable teeka block (English:
  *       SGPC Bhai Manmohan Singh, or Punjabi: Guru Granth Darpan ↑ Faridkot
  *       Teeka), switchable via ReaderControls.
+ *  25.  Extra translation languages — Hindi + Spanish alongside en/pu.
+ *  26.  Word meanings — per-verse pad-arth block served by BaniDB.
+ *  27.  Nitnem banis — optional `baniToken`/`baniName` re-target bookmark,
+ *       copy and share attribution to the bani page.
  *  24.  Transliteration script — English / Hindi / Urdu / IPA variants.
  */
 
@@ -35,7 +39,7 @@ import {
   StickyNote,
   X,
 } from "lucide-react";
-import type { HighlightColor, VerseLine } from "@/lib/types";
+import type { HighlightColor, TranslationLang, VerseLine } from "@/lib/types";
 import { useReaderPrefs } from "./ReaderPrefsProvider";
 import { useBookmarks } from "./BookmarksProvider";
 import { useHighlights, HIGHLIGHT_COLORS } from "./HighlightsProvider";
@@ -60,13 +64,29 @@ const HIGHLIGHT_LABELS: Record<HighlightColor, string> = {
 /** Fallback font stack used when drawing the share card onto a canvas. */
 const SHARE_FONT_STACK = `"Noto Sans Gurmukhi", "Nirmala UI", "Raavi", sans-serif`;
 
+/** HTML lang attribute + Gurmukhi font flag per translation language. */
+const TRANSLATION_ATTRS: Record<TranslationLang, { lang: string; gurmukhi: boolean }> = {
+  en: { lang: "en", gurmukhi: false },
+  pu: { lang: "pa", gurmukhi: true },
+  hi: { lang: "hi", gurmukhi: false },
+  es: { lang: "es", gurmukhi: false },
+};
+
 export default function VerseCard({
   line,
   angNumber,
+  baniToken,
+  baniName,
 }: {
   line: VerseLine;
   angNumber: number;
+  /** Nitnem bani token (e.g. "japji") when rendered on a bani page. */
+  baniToken?: string;
+  /** Display name used for copy/share attribution on a bani page. */
+  baniName?: string;
 }) {
+  /** Attribution used by copy + share ("Ang N" or the bani name). */
+  const sourceLabel = baniName ?? `Sri Guru Granth Sahib Ji (Ang ${angNumber})`;
   const prefs = useReaderPrefs();
   const { isBookmarked, toggleBookmark } = useBookmarks();
   const { getHighlight, toggleHighlight } = useHighlights();
@@ -119,6 +139,7 @@ export default function VerseCard({
    */
   const primaryTranslation = line.translations[prefs.translationLang];
   const punjabiTranslation = line.translations["pu"];
+  const translationAttrs = TRANSLATION_ATTRS[prefs.translationLang];
 
   // -- Commentary / teeka (feature 21) ------------------------------------------
 
@@ -162,7 +183,7 @@ export default function VerseCard({
         line.gurmukhi,
         translit ? translit : "",
         primaryTranslation ? primaryTranslation : "",
-        `— Sri Guru Granth Sahib Ji (Ang ${angNumber})`,
+        `— ${sourceLabel}`,
       ]
         .filter(Boolean)
         .join("\n");
@@ -254,13 +275,15 @@ export default function VerseCard({
       // Footer attribution.
       ctx.fillStyle = "#64748B";
       ctx.font = `400 26px "Inter", sans-serif`;
-      ctx.fillText(`Sri Guru Granth Sahib Ji · Ang ${angNumber}`, canvas.width / 2, 1240);
+      ctx.fillText(baniName ?? `Sri Guru Granth Sahib Ji · Ang ${angNumber}`, canvas.width / 2, 1240);
 
       // Download.
       const url = canvas.toDataURL("image/png");
       const a = document.createElement("a");
       a.href = url;
-      a.download = `sggs-ang-${angNumber}-verse-${line.id}.png`;
+      a.download = baniToken
+        ? `sggs-${baniToken}-verse-${line.id}.png`
+        : `sggs-ang-${angNumber}-verse-${line.id}.png`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -374,11 +397,27 @@ export default function VerseCard({
           </div>
         ) : (
           prefs.showTranslation && primaryTranslation && (
-            <p className={`verse-extra mt-2 text-[1.02em] leading-relaxed text-[var(--text-secondary)] ${hiddenMemorize ? "blur-sm select-none" : ""}`}>
+            <p
+              dir="auto"
+              lang={translationAttrs.lang}
+              className={`verse-extra mt-2 text-[1.02em] leading-relaxed text-[var(--text-secondary)] ${translationAttrs.gurmukhi ? "font-gurmukhi" : ""} ${hiddenMemorize ? "blur-sm select-none" : ""}`}
+            >
               {primaryTranslation}
             </p>
           )
         )
+      )}
+
+      {/* Word-by-word meanings (pad-arth), served by BaniDB per verse. */}
+      {prefs.showWordMeanings && line.padArth && (
+        <div className={`verse-extra mt-4 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 ${hiddenMemorize ? "blur-sm select-none" : ""}`}>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+            Word Meanings · Pad-arth
+          </p>
+          <p dir="auto" lang="pa" className="font-gurmukhi mt-1 text-[0.9em] leading-relaxed text-[var(--text-secondary)]">
+            {line.padArth}
+          </p>
+        </div>
       )}
 
       {/* Text & commentary block (feature 21) — genuine teeka from BaniDB's
@@ -505,6 +544,7 @@ export default function VerseCard({
                 verseId: line.id,
                 angNumber,
                 gurmukhiSnippet: line.gurmukhi.slice(0, 60),
+                ...(baniToken ? { bani: baniToken } : {}),
               })
             }
             aria-label={saved ? "Remove bookmark" : "Save bookmark"}

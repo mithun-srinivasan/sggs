@@ -8,6 +8,7 @@
  *   9. Reading history — the most recent Angs revisited, newest last.
  *  13. Reading playlist — a "Sehaj Paath"-style plan: start today and read
  *      N Angs/day until all 1430 are covered.
+ *  28. Daily goal tracker — an Angs-per-day goal with today's progress.
  *
  * All state lives in `localStorage` (`sgs-reader-progress`) guarded by a
  * hydration flag, and is debounced 500ms on write, mirroring the other
@@ -48,8 +49,15 @@ function dateFromKey(key: string): Date {
   return new Date(y, m - 1, d, 12);
 }
 
-/** Empty starting state — nothing read, no plan. */
-const EMPTY: ReadingProgress = { readAngs: [], visits: {}, history: [], plan: null };
+/** Empty starting state — nothing read, no plan, no daily goal. */
+const EMPTY: ReadingProgress = { readAngs: [], visits: {}, history: [], plan: null, dailyGoal: 0 };
+
+/** Normalises a stored daily goal (corrupt storage → 0 = unset). */
+function normalizeGoal(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value)
+    ? Math.max(0, Math.min(50, Math.round(value)))
+    : 0;
+}
 
 /** Public context API. */
 interface ProgressContextValue extends ReadingProgress {
@@ -76,6 +84,10 @@ interface ProgressContextValue extends ReadingProgress {
   todaysPlanRange: [number, number] | null;
   /** Ang to continue from under the plan (first unread >= today's start). */
   planContinueAng: number;
+  /** Distinct Angs completed today (derived from history timestamps). */
+  todaysAngCount: number;
+  /** Set the daily Sehaj Paath goal (angs/day, clamped 0–50; 0 clears it). */
+  setDailyGoal: (angs: number) => void;
 }
 
 const ProgressContext = createContext<ProgressContextValue | null>(null);
@@ -146,6 +158,13 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
     setProgress((p) => ({ ...p, plan: null }));
   }, []);
 
+  const setDailyGoal = useCallback((angs: number) => {
+    setProgress((p) => ({
+      ...p,
+      dailyGoal: Math.max(0, Math.min(50, Math.round(angs) || 0)),
+    }));
+  }, []);
+
   const value = useMemo((): ProgressContextValue => {
     /** Consecutive days (>=1) with a read, counting forward from today. */
     const streak = (() => {
@@ -190,8 +209,16 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       return cursor;
     })();
 
+    /** Distinct Angs completed today — history holds one entry per Ang. */
+    const todaysAngCount = (() => {
+      if (!hydrated) return 0;
+      const today = dayKey();
+      return progress.history.filter((h) => dayKey(new Date(h.at)) === today).length;
+    })();
+
     return {
       ...progress,
+      dailyGoal: normalizeGoal(progress.dailyGoal),
       hydrated,
       markAngRead,
       isAngRead,
@@ -204,8 +231,10 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       planDayIndex,
       todaysPlanRange,
       planContinueAng,
+      todaysAngCount,
+      setDailyGoal,
     };
-  }, [progress, hydrated, markAngRead, isAngRead, startPlan, clearPlan]);
+  }, [progress, hydrated, markAngRead, isAngRead, startPlan, clearPlan, setDailyGoal]);
 
   return <ProgressContext.Provider value={value}>{children}</ProgressContext.Provider>;
 }

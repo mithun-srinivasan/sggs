@@ -23,6 +23,7 @@ import { NotesProvider } from "@/components/NotesProvider";
 import { HighlightsProvider } from "@/components/HighlightsProvider";
 import PageTransition from "@/components/PageTransition";
 import ShortcutHelp from "@/components/ShortcutHelp";
+import OfflineIndicator from "@/components/OfflineIndicator";
 import ServiceWorkerRegistrar from "@/components/ServiceWorkerRegistrar";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -78,6 +79,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <HighlightsProvider>
                   <PageTransition />
                   <ShortcutHelp />
+                  <OfflineIndicator />
                   <ServiceWorkerRegistrar />
                   {children}
                 </HighlightsProvider>

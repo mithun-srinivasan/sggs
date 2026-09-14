@@ -83,6 +83,16 @@ export default async function PrintAngPage({ params }: PageProps) {
                   {line.translations.pu}
                 </p>
               )}
+              {line.translations.hi && (
+                <p dir="auto" lang="hi" className="mt-1 text-sm text-[var(--text-secondary)]">
+                  {line.translations.hi}
+                </p>
+              )}
+              {line.translations.es && (
+                <p dir="auto" lang="es" className="mt-1 text-sm text-[var(--text-secondary)]">
+                  {line.translations.es}
+                </p>
+              )}
             </section>
           ))}
         </article>

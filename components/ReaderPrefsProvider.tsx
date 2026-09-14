@@ -34,7 +34,7 @@ import {
   useRef,
   type ReactNode,
 } from "react";
-import type { CommentarySource, ReaderPrefs, ThemeMode, TranslationLang, TranslitStyle } from "@/lib/types";
+import type { CommentaryLang, CommentarySource, ReaderPrefs, ThemeMode, TranslationLang, TranslitStyle } from "@/lib/types";
 
 /** localStorage key where reader preferences are persisted. */
 const STORAGE_KEY = "sgs-reader-prefs";
@@ -57,6 +57,7 @@ const DEFAULT_PREFS: ReaderPrefs = {
   showKanji: false,
   commentaryLang: "pu",
   commentarySource: "fareedkot",
+  showWordMeanings: false,
   isTapToTranslit: false,
   translitStyle: "en",
 };
@@ -82,8 +83,9 @@ interface ReaderPrefsContextValue extends ReaderPrefs {
   toggleMemorizationMode: () => void;
   toggleParallelTranslations: () => void;
   toggleKanji: () => void;
-  setCommentaryLang: (lang: TranslationLang) => void;
+  setCommentaryLang: (lang: CommentaryLang) => void;
   setCommentarySource: (source: CommentarySource) => void;
+  toggleWordMeanings: () => void;
   toggleTapToTranslit: () => void;
   setTranslitStyle: (style: TranslitStyle) => void;
 }
@@ -110,7 +112,8 @@ function hexToRgba(hex: string, alpha: number): string {
  * localStorage data can never break theming or the reader controls.
  */
 const VALID_THEMES: ThemeMode[] = ["light", "dark", "sepia"];
-const VALID_TRANSLATIONS: TranslationLang[] = ["en", "pu"];
+const VALID_TRANSLATIONS: TranslationLang[] = ["en", "pu", "hi", "es"];
+const VALID_COMMENTARY_LANGS: CommentaryLang[] = ["en", "pu"];
 const VALID_TRANSLIT_STYLES: TranslitStyle[] = ["en", "hi", "ur", "ipa"];
 const VALID_COMMENTARY_SOURCES: CommentarySource[] = ["darpan", "fareedkot"];
 const HEX_RE = /^#([0-9a-fA-F]{3}){1,2}$/;
@@ -138,9 +141,9 @@ function sanitizePrefs(raw: unknown): ReaderPrefs {
   }
   if (
     typeof candidate.commentaryLang === "string" &&
-    (VALID_TRANSLATIONS as string[]).includes(candidate.commentaryLang)
+    (VALID_COMMENTARY_LANGS as string[]).includes(candidate.commentaryLang)
   ) {
-    prefs.commentaryLang = candidate.commentaryLang as TranslationLang;
+    prefs.commentaryLang = candidate.commentaryLang as CommentaryLang;
   }
   if (
     typeof candidate.commentarySource === "string" &&
@@ -166,6 +169,7 @@ function sanitizePrefs(raw: unknown): ReaderPrefs {
     "isMemorizationMode",
     "isParallelTranslations",
     "showKanji",
+    "showWordMeanings",
     "isTapToTranslit",
   ];
   for (const key of boolKeys) {
@@ -336,8 +340,10 @@ export function ReaderPrefsProvider({ children }: { children: ReactNode }) {
     const toggleParallelTranslations = () =>
       setPrefs((p) => ({ ...p, isParallelTranslations: !p.isParallelTranslations }));
     const toggleKanji = () => setPrefs((p) => ({ ...p, showKanji: !p.showKanji }));
-    const setCommentaryLang = (commentaryLang: TranslationLang) =>
+    const setCommentaryLang = (commentaryLang: CommentaryLang) =>
       setPrefs((p) => ({ ...p, commentaryLang }));
+    const toggleWordMeanings = () =>
+      setPrefs((p) => ({ ...p, showWordMeanings: !p.showWordMeanings }));
     const setCommentarySource = (commentarySource: CommentarySource) =>
       setPrefs((p) => ({ ...p, commentarySource }));
     const toggleTapToTranslit = () =>
@@ -364,6 +370,7 @@ export function ReaderPrefsProvider({ children }: { children: ReactNode }) {
       toggleKanji,
       setCommentaryLang,
       setCommentarySource,
+      toggleWordMeanings,
       toggleTapToTranslit,
       setTranslitStyle,
     };

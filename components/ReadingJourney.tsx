@@ -7,6 +7,7 @@
  *   - Reading streak (feature 8)         — consecutive days with reading.
  *   - Reading history (feature 9)        — most recently visited Angs.
  *   - Reading playlist / Sehaj Paath (13) — start an N-day plan and continue.
+ *   - Daily goal tracker — set an Angs-per-day goal and watch today's bar.
  *
  * All state comes from `ProgressProvider` (localStorage-backed).  A plan
  * duration is chosen from a few sensible presets (7 / 30 / 90 / 365 days).
@@ -16,11 +17,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { BookOpenCheck, Flame, History, CalendarClock, Play, X } from "lucide-react";
+import { BookOpenCheck, Flame, History, CalendarClock, Play, X, Target, Minus, Plus } from "lucide-react";
 import { useReadingProgress } from "./ProgressProvider";
 
 /** Preset reading-plan lengths, in days. */
 const PLAN_PRESETS = [7, 30, 90, 365];
+
+/** Preset daily Sehaj Paath goals, in Angs. */
+const GOAL_PRESETS = [1, 2, 5, 10];
 
 export default function ReadingJourney() {
   const {
@@ -36,9 +40,17 @@ export default function ReadingJourney() {
     planContinueAng,
     startPlan,
     clearPlan,
+    dailyGoal,
+    todaysAngCount,
+    setDailyGoal,
   } = useReadingProgress();
 
   const [planOpen, setPlanOpen] = useState(false);
+  const [goalOpen, setGoalOpen] = useState(false);
+
+  /** Today's goal progress, capped at 100% for the bar. */
+  const goalMet = dailyGoal > 0 && todaysAngCount >= dailyGoal;
+  const goalWidth = dailyGoal > 0 ? Math.min(100, Math.round((todaysAngCount / dailyGoal) * 100)) : 0;
 
   // Avoid rendering dynamic (localStorage-derived) values before hydration.
   if (!hydrated) {
@@ -82,6 +94,104 @@ export default function ReadingJourney() {
         <p className="mt-1.5 text-[11px] text-[var(--text-faint)]">
           Read on {totalReadDays} {totalReadDays === 1 ? "day" : "days"} so far.
         </p>
+      </div>
+
+      {/* Daily Sehaj Paath goal tracker */}
+      <div className="rounded-xl border border-[var(--border)] p-4">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-xs font-semibold text-[var(--text)]">
+            <Target size={14} className="text-[var(--accent)]" />
+            <span>Today&apos;s Goal</span>
+          </div>
+          <button
+            onClick={() => setGoalOpen((o) => !o)}
+            aria-label="Set daily reading goal"
+            className="text-[11px] font-semibold text-[var(--accent)] hover:underline"
+          >
+            {dailyGoal > 0 ? `${dailyGoal} Angs/day` : "Set goal"}
+          </button>
+        </div>
+
+        {dailyGoal > 0 ? (
+          <div className="mt-3">
+            <div className="mb-1.5 flex items-center justify-between text-xs">
+              <span className="text-[var(--text-muted)]">
+                {goalMet ? (
+                  <span className="font-semibold text-[var(--accent)]">
+                    Goal complete — Vaheguru! ({todaysAngCount}/{dailyGoal})
+                  </span>
+                ) : (
+                  `${todaysAngCount} of ${dailyGoal} Angs today`
+                )}
+              </span>
+              <span className="font-bold text-[var(--text)]">{goalWidth}%</span>
+            </div>
+            <div className="h-2.5 w-full overflow-hidden rounded-full bg-[var(--border)]">
+              <div
+                className="h-full rounded-full bg-[var(--accent)] transition-all duration-500"
+                style={{ width: `${goalWidth}%` }}
+              />
+            </div>
+          </div>
+        ) : goalOpen ? null : (
+          <p className="mt-2 text-[11px] text-[var(--text-faint)]">
+            Set a gentle daily goal — e.g. 2 Angs a day finishes the Granth in about 2 years.
+          </p>
+        )}
+
+        {goalOpen && (
+          <div className="mt-3 space-y-2">
+            <div className="flex flex-wrap gap-2">
+              {GOAL_PRESETS.map((n) => (
+                <button
+                  key={n}
+                  onClick={() => {
+                    setDailyGoal(n);
+                    setGoalOpen(false);
+                  }}
+                  aria-pressed={dailyGoal === n}
+                  className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+                    dailyGoal === n
+                      ? "border-[var(--accent)] text-[var(--accent)]"
+                      : "border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                  }`}
+                >
+                  {n} / day
+                </button>
+              ))}
+              {dailyGoal > 0 && (
+                <button
+                  onClick={() => {
+                    setDailyGoal(0);
+                    setGoalOpen(false);
+                  }}
+                  className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text)] transition"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setDailyGoal(dailyGoal - 1)}
+                aria-label="Decrease daily goal"
+                className="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] transition"
+              >
+                <Minus size={14} />
+              </button>
+              <span className="min-w-[72px] text-center text-xs font-bold text-[var(--text)]">
+                {dailyGoal} / day
+              </span>
+              <button
+                onClick={() => setDailyGoal(dailyGoal + 1)}
+                aria-label="Increase daily goal"
+                className="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] transition"
+              >
+                <Plus size={14} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Reading plan / playlist (feature 13) */}

@@ -16,7 +16,10 @@
  */
 
 /** Which translation language is currently selected for display. */
-export type TranslationLang = "en" | "pu";
+export type TranslationLang = "en" | "pu" | "hi" | "es";
+
+/** Languages the genuine commentary block supports (English + Punjabi). */
+export type CommentaryLang = "en" | "pu";
 
 /** Which genuine Punjabi teeka (commentary) to display. */
 export type CommentarySource = "darpan" | "fareedkot";
@@ -49,7 +52,16 @@ export interface VerseLine {
     en?: string;
     /** Punjabi translation (BaniDB `translation.pu.ss.unicode/gurmukhi`). */
     pu?: string;
+    /** Hindi translation (BaniDB `translation.hi.ss`). */
+    hi?: string;
+    /** Spanish translation (BaniDB `translation.es.sn`). */
+    es?: string;
   };
+  /**
+   * Word-by-word meanings (pad-arth) for the verse, served by BaniDB through
+   * the `pu.pss` key.  Absent on some verses — the UI hides the block then.
+   */
+  padArth?: string;
   /**
    * Genuine verse commentary (teeka) drawn from BaniDB's dedicated commentary
    * sources — never a re-label of the plain translation:
@@ -104,6 +116,26 @@ export interface Bookmark {
   savedAt: number; // epoch milliseconds; `Date.now()` when created
   /** Optional user-defined tags/folders for organising bookmarks (feature: folders). */
   tags?: string[];
+  /** Nitnem bani token (e.g. "japji") when saved from a bani page. */
+  bani?: string;
+}
+
+/** A Nitnem bani (daily prayer) served by BaniDB's `/v2/banis/:id` endpoint. */
+export interface Bani {
+  /** BaniDB numeric id (token-based lookup 500s — always use the id). */
+  id: number;
+  /** URL token, e.g. "japji". */
+  token: string;
+  /** English display name, e.g. "Japji Sahib". */
+  name: string;
+  /** Gurmukhi display name, e.g. "ਜਪੁਜੀ ਸਾਹਿਬ". */
+  punjabiName: string;
+  /** Short description shown on list cards. */
+  description: string;
+  /** When it is traditionally recited (e.g. "Morning"). */
+  time: string;
+  /** Verses in order, mapped like normal `VerseLine` items. */
+  verses: VerseLine[];
 }
 
 /**
@@ -119,6 +151,8 @@ export interface ReadingProgress {
   history: { ang: number; at: number }[];
   /** Active reading plan (playlist), if any — `null` when not started. */
   plan: { startDate: string; totalDays: number } | null;
+  /** Daily Sehaj Paath goal in Angs (`0` = unset). */
+  dailyGoal: number;
 }
 
 /** A user annotation on a single verse, persisted under `sgs-reader-notes`. */
@@ -212,7 +246,9 @@ export interface ReaderPrefs {
   /** Displays the verse commentary (teeka) block under each verse. */
   showKanji: boolean;
   /** Language of the commentary block (`en` → SGPC rendition, `pu` → teeka). */
-  commentaryLang: TranslationLang;
+  commentaryLang: CommentaryLang;
+  /** Displays the word-by-word meanings (pad-arth) block under each verse. */
+  showWordMeanings: boolean;
   /** Which genuine Punjabi teeka to use when `commentaryLang` is `pu`. */
   commentarySource: CommentarySource;
   // -- tap-to-transliterate words (feature 19) --------------------------------

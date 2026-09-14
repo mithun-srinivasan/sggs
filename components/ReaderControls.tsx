@@ -21,7 +21,7 @@
 
 import { Minus, Plus, Sun, Moon, Coffee } from "lucide-react";
 import { useReaderPrefs } from "./ReaderPrefsProvider";
-import type { CommentarySource, ThemeMode, TranslationLang, TranslitStyle } from "@/lib/types";
+import type { CommentaryLang, CommentarySource, ThemeMode, TranslationLang, TranslitStyle } from "@/lib/types";
 
 /** Available themes and their display metadata. */
 const THEMES: { id: ThemeMode; label: string; icon: typeof Sun }[] = [
@@ -30,8 +30,16 @@ const THEMES: { id: ThemeMode; label: string; icon: typeof Sun }[] = [
   { id: "sepia", label: "Sepia", icon: Coffee },
 ];
 
-/** Available translation languages. */
+/** Available translation languages (BaniDB serves all four). */
 const LANGS: { id: TranslationLang; label: string }[] = [
+  { id: "en", label: "English" },
+  { id: "pu", label: "Punjabi" },
+  { id: "hi", label: "Hindi" },
+  { id: "es", label: "Spanish" },
+];
+
+/** Commentary-block languages (genuine teekas exist in English + Punjabi). */
+const COMMENTARY_LANGS: { id: CommentaryLang; label: string }[] = [
   { id: "en", label: "English" },
   { id: "pu", label: "Punjabi" },
 ];
@@ -290,6 +298,12 @@ export default function ReaderControls() {
             onToggle={prefs.toggleTapToTranslit}
             hint="Tap any Gurmukhi word to see its transliteration"
           />
+          <ToggleRow
+            label="Word Meanings"
+            pressed={prefs.showWordMeanings}
+            onToggle={prefs.toggleWordMeanings}
+            hint="Show word-by-word meanings (pad-arth) under each verse"
+          />
         </div>
 
         {/* Commentary language selector (feature 21) */}
@@ -297,7 +311,7 @@ export default function ReaderControls() {
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <span className="text-xs font-semibold text-[var(--text-muted)]">Commentary Language</span>
             <div className="flex items-center rounded-lg border border-[var(--border)] p-0.5">
-              {LANGS.map(({ id, label }) => (
+              {COMMENTARY_LANGS.map(({ id, label }) => (
                 <button
                   key={id}
                   onClick={() => prefs.setCommentaryLang(id)}

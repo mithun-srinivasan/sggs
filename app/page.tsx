@@ -24,6 +24,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useReaderPrefs } from "@/components/ReaderPrefsProvider";
 import HukamnamaCard from "@/components/HukamnamaCard";
+import NitnemCard from "@/components/NitnemCard";
 import ReadingJourney from "@/components/ReadingJourney";
 import GurpurabCalendar from "@/components/GurpurabCalendar";
 import {
@@ -402,6 +403,11 @@ export default function HomePage() {
           {/* Daily Hukamnama — sourced from the official SGPC website        */}
           {/* -------------------------------------------------------------- */}
           <HukamnamaCard />
+
+          {/* -------------------------------------------------------------- */}
+          {/* Daily Nitnem — the five daily prayers                           */}
+          {/* -------------------------------------------------------------- */}
+          <NitnemCard />
 
           {/* -------------------------------------------------------------- */}
           {/* Reading journey — progress, streak, history, Sehaj Paath plan   */}

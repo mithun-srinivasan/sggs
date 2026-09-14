@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 import { useBookmarks } from "@/components/BookmarksProvider";
 import { useReaderPrefs } from "@/components/ReaderPrefsProvider";
+import { getBaniName } from "@/lib/nitnem";
 
 export default function BookmarksPage() {
   const { bookmarks, removeBookmark, addTag, removeTag, allTags, exportBookmarks, importBookmarks } =
@@ -254,13 +255,15 @@ export default function BookmarksPage() {
             {visible.map((b) => (
               <li key={b.verseId} className="flex items-start justify-between gap-4 py-4">
                 <div className="min-w-0 flex-1">
-                  {/* Tapping navigates directly to the verse in the reader */}
+                  {/* Tapping navigates directly to the verse in the reader
+                      (bani bookmarks deep-link to the Nitnem page instead). */}
                   <Link
-                    href={`/ang/${b.angNumber}#${b.verseId}`}
+                    href={b.bani ? `/nitnem/${b.bani}#${b.verseId}` : `/ang/${b.angNumber}#${b.verseId}`}
                     className="block transition hover:opacity-80"
                   >
                     <span className="text-xs font-bold text-[var(--accent)]">
-                      Ang {b.angNumber} · {new Date(b.savedAt).toLocaleDateString()}
+                      {b.bani ? getBaniName(b.bani) : `Ang ${b.angNumber}`} ·{" "}
+                      {new Date(b.savedAt).toLocaleDateString()}
                     </span>
                     <p className="font-gurmukhi text-lg font-semibold leading-relaxed text-[var(--text)] truncate mt-1">
                       {b.gurmukhiSnippet}

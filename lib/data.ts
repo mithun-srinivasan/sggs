@@ -14,8 +14,9 @@
  */
 
 import { cache } from "react";
-import type { Ang, HukamnamaInfo, SearchResult, VerseLine } from "./types";
+import type { Ang, Bani, HukamnamaInfo, SearchResult, VerseLine } from "./types";
 import { MAX_ANG, MIN_ANG } from "./types";
+import { NITNEM_BANIS } from "./nitnem";
 
 /** Base URL of the public BaniDB v2 REST API. */
 const BANIDB_BASE = "https://api.banidb.com/v2";
@@ -98,6 +99,14 @@ interface BaniDbVerseRaw {
       ss?: { unicode?: string; gurmukhi?: string }; // Guru Granth Darpan (Prof. Sahib Singh)
       ft?: { unicode?: string; gurmukhi?: string }; // Faridkot Teeka (Sant Giani Badan Singh Ji)
       ms?: { unicode?: string; gurmukhi?: string }; // Punjabi rendering (SGPC, Bhai Manmohan Singh)
+      pss?: { unicode?: string; gurmukhi?: string }; // Word-by-word meanings (pad-arth)
+    };
+    hi?: {
+      ss?: string; // Hindi translation
+      sts?: string; // Hindi rendering (alternate source)
+    };
+    es?: {
+      sn?: string; // Spanish translation
     };
   };
   writer?: { english?: string | null } | null;
@@ -110,6 +119,12 @@ interface BaniDbAngResponse {
   page?: BaniDbVerseRaw[];
   baniInfo?: { unicode?: string };
   source?: { english?: string };
+}
+
+/** Envelope returned by BaniDB's `/v2/banis/:id` endpoint (numeric id only). */
+interface BaniDbBaniResponse {
+  baniInfo?: { english?: string; unicode?: string };
+  verses?: { verse?: BaniDbVerseRaw }[];
 }
 
 /** Envelope returned by BaniDB's `/v2/hukamnamas/:year/:month/:day` endpoint. */
@@ -156,7 +171,12 @@ function mapVerse(raw: BaniDbVerseRaw, angNumber: number, index: number): VerseL
       en: raw.translation?.en?.bdb ?? undefined,
       // Punjabi arrives as Gurmukhi text — try unicode first, then the fallback.
       pu: raw.translation?.pu?.ss?.unicode ?? raw.translation?.pu?.ss?.gurmukhi ?? undefined,
+      hi: raw.translation?.hi?.ss ?? raw.translation?.hi?.sts ?? undefined,
+      es: raw.translation?.es?.sn ?? undefined,
     },
+    // Word-by-word meanings (pad-arth); absent on some verses.
+    padArth:
+      raw.translation?.pu?.pss?.unicode ?? raw.translation?.pu?.pss?.gurmukhi ?? undefined,
     // Genuine commentary sources (feature 21): SGPC English rendering for the
     // English side, and both the Guru Granth Darpan + Faridkot Teeka for the
     // Punjabi side.  Each falls back gracefully when the API omits a source.
@@ -217,6 +237,43 @@ export const getAng = cache(
     }
   }
 );
+
+/**
+ * Fetches one Nitnem bani from BaniDB by numeric id.
+ *
+ * Runs at BUILD TIME for the five daily prayers via `generateStaticParams`
+ * in `app/nitnem/[token]/page.tsx` (`next: { revalidate: false }` — bani
+ * text is immutable).  Verses arrive nested under a `verse` key but are
+ * otherwise shaped like Ang verses, so they map through `mapVerse` and power
+ * the same translation / commentary / pad-arth blocks.
+ *
+ * @param id the BaniDB numeric bani id (see `NITNEM_BANIS` in lib/nitnem.ts)
+ * @returns the mapped bani, or `null` when unknown / API unreachable
+ */
+export const getBani = cache(async function getBani(id: number): Promise<Bani | null> {
+  const meta = NITNEM_BANIS.find((b) => b.id === id);
+  if (!meta) return null;
+
+  try {
+    const res = await fetchUpstream(`${BANIDB_BASE}/banis/${id}`, {
+      next: { revalidate: false },
+    });
+    if (!res.ok) return null;
+
+    const data: BaniDbBaniResponse = await res.json();
+    const rows = (data.verses ?? [])
+      .map((row) => row.verse)
+      .filter((v): v is BaniDbVerseRaw => !!v?.verse?.unicode);
+    if (rows.length === 0) return null;
+
+    return {
+      ...meta,
+      verses: rows.map((raw, i) => mapVerse(raw, id, i)),
+    };
+  } catch {
+    return null; // fail soft — the bani page renders its not-found state
+  }
+});
 
 /**
  * Full-text search across all Angs via BaniDB's search endpoint.

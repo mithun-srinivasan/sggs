@@ -4,8 +4,11 @@
  * Service worker providing offline support (feature 1).
  *
  * Strategy:
- *   - App shell (navigation + entry document) → **cache-first, network-fallback
- *     with a runtime network cache** so every visited route works offline.
+ *   - App shell (navigation + entry documents) → **precached on install** so
+ *     the home page, Nitnem list and key routes open offline immediately.
+ *   - Navigation requests → **network-first with runtime cache fallback** so
+ *     fresh HTML is served when online while every visited route keeps
+ *     working offline; unvisited routes offline fall back to the home page.
  *   - Static Next.js build assets & hashed chunks → **cache-first forever**
  *     (immutable, content-hashed).
  *   - Font & image files → **stale-while-revalidate** for freshness.
@@ -15,11 +18,11 @@
  * The version string in `CACHE` busts the cache whenever the build changes.
  */
 
-const CACHE = "sggs-reader-v1";
+const CACHE = "sggs-reader-v2";
 const SHELL_CACHE = `${CACHE}-shell`;
 
-/** Entry documents we want available offline once visited. */
-const SHELL_URLS = ["/", "/search", "/bookmarks", "/ang/1", "/learn"];
+/** Entry documents precached on install for instant offline opens. */
+const SHELL_URLS = ["/", "/search", "/bookmarks", "/ang/1", "/learn", "/nitnem"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -48,6 +51,8 @@ self.addEventListener("activate", (event) => {
 /**
  * Returns the cached response for a request, or fetches it over the network
  * and stores it in the runtime cache when the request is GET-only.
+ * Offline with no cached copy → falls back to the cached home page so the
+ * app still opens instead of showing a browser error.
  */
 async function networkFirstWithCache(request) {
   const cache = await caches.open(SHELL_CACHE);
@@ -56,7 +61,9 @@ async function networkFirstWithCache(request) {
     if (response.ok) cache.put(request, response.clone());
     return response;
   } catch {
-    return (await cache.match(request)) || Response.error();
+    return (
+      (await cache.match(request)) || (await cache.match("/")) || Response.error()
+    );
   }
 }
 
