@@ -52,12 +52,6 @@ export const metadata: Metadata = {
   title: "Sri Guru Granth Sahib Ji — Ang Reader",
   description: "A radically minimalist, verse-by-verse digital reader for Sri Guru Granth Sahib Ji.",
   manifest: "/manifest.webmanifest",
-  icons: {
-    icon: [
-      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
-    ],
-  },
   appleWebApp: {
     capable: true,
     title: "SGGS Reader",

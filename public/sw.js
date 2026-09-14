@@ -67,7 +67,8 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return; // never touch cross-origin
 
-  // Navigation requests: serve the cached shell first, fall back to network.
+  // Navigation requests: network-first, cache-fallback so fresh HTML is served
+  // when online while still allowing offline navigation to visited routes.
   if (request.mode === "navigate") {
     event.respondWith(networkFirstWithCache(request));
     return;

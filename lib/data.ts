@@ -214,7 +214,22 @@ export function clampAng(n: number): number {
  */
 export async function getHukamnama(): Promise<HukamnamaInfo | null> {
   const now = new Date();
-  const dateLabel = now.toLocaleDateString("en-GB", {
+
+  // Compute IST date so the correct Hukamnama is fetched during the ~2.5 hour
+  // UTC gap after Amrit Vela (3 AM IST ≈ 9:30 PM UTC previous day).
+  const istParts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+  }).formatToParts(now);
+  const get = (type: string) => Number(istParts.find((p) => p.type === type)?.value ?? 0);
+  const year = get("year");
+  const month = get("month");
+  const day = get("day");
+  const istNow = new Date(year, month - 1, day);
+
+  const dateLabel = istNow.toLocaleDateString("en-GB", {
     weekday: "long",
     day: "numeric",
     month: "long",
@@ -227,8 +242,6 @@ export async function getHukamnama(): Promise<HukamnamaInfo | null> {
     const res = await fetch(SGPC_HUKAMNAMA_URL, { next: { revalidate: 21600 } });
     if (res.ok) {
       const html = await res.text();
-      // Prefer an <img> whose src mentions "hukamnama"; fall back to any
-      // media image under the SGPC storage folder.
       const raw =
         html.match(/<img[^>]+src="([^"]*hukamnama[^"]*\.(?:jpe?g|png|webp))"[^>]*>/i) ??
         html.match(/<img[^>]+src="([^"]*(?:storage\/\d{4}\/\d{2}\/)[^"]+\.(?:jpe?g|png|webp))"[^>]*>/i);
@@ -246,7 +259,7 @@ export async function getHukamnama(): Promise<HukamnamaInfo | null> {
 
   // -- 2) BaniDB text mirror of the same daily selection ---------------------
   try {
-    const url = `${BANIDB_BASE}/hukamnamas/${now.getFullYear()}/${now.getMonth() + 1}/${now.getDate()}`;
+    const url = `${BANIDB_BASE}/hukamnamas/${year}/${month}/${day}`;
     const res = await fetch(url, { next: { revalidate: 21600 } });
     if (!res.ok) return null;
 
