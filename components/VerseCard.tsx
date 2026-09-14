@@ -23,6 +23,7 @@
  *  26.  Word meanings — per-verse pad-arth block served by BaniDB.
  *  27.  Nitnem banis — optional `baniToken`/`baniName` re-target bookmark,
  *       copy and share attribution to the bani page.
+ *  29.  Visraam pauses — Santhya pause marks interleaved in the Gurmukhi.
  *  24.  Transliteration script — English / Hindi / Urdu / IPA variants.
  */
 
@@ -171,6 +172,48 @@ export default function VerseCard({
   const isLareevar =
     prefs.isLareevarMode && !prefs.isTapToTranslit && !prefs.isMemorizationMode;
   const gurmukhiText = isLareevar ? line.gurmukhi.replace(/\s+/g, "") : line.gurmukhi;
+
+  /**
+   * Gurmukhi line with Santhya pause (visraam) markers interleaved after the
+   * marked words — "," short pause, ";" long pause (feature 29).  Hidden in
+   * Lareevar (continuous flow) and tap-to-transliterate (word alignment)
+   * modes, where inline marks would corrupt the layout.
+   */
+  const gurmukhiWithVisraam = useMemo(() => {
+    const markers = line.visraam;
+    if (
+      !prefs.showVisraam ||
+      isLareevar ||
+      prefs.isTapToTranslit ||
+      !markers ||
+      markers.length === 0
+    ) {
+      return null;
+    }
+    const words = line.gurmukhi.split(/\s+/).filter(Boolean);
+    const byPos = new Map<number, boolean>();
+    for (const m of markers) {
+      if (m.pos < words.length) byPos.set(m.pos, (byPos.get(m.pos) ?? false) || m.long);
+    }
+    if (byPos.size === 0) return null;
+    return words.map((w, i) => {
+      const pause = byPos.get(i);
+      return (
+        <span key={i}>
+          {w}
+          {pause !== undefined && (
+            <span
+              title={pause ? "Long pause (visraam)" : "Short pause (visraam)"}
+              className="font-bold text-[var(--accent)]"
+            >
+              {pause ? ";" : ","}
+            </span>
+          )}
+          {i < words.length - 1 ? " " : ""}
+        </span>
+      );
+    });
+  }, [line.gurmukhi, line.visraam, prefs.showVisraam, prefs.isTapToTranslit, isLareevar]);
 
   /** True when the Gurmukhi should currently appear blurred (memorisation). */
   const hiddenMemorize = prefs.isMemorizationMode && !revealed;
@@ -323,7 +366,9 @@ export default function VerseCard({
           <span dir="auto" lang="pa">
             ੴ ॥ {line.gurmukhi.split(/\s+/).filter(Boolean).map(() => "—").join(" ")}
           </span>
-        ) : gurmukhiText}
+        ) : (
+          gurmukhiWithVisraam ?? gurmukhiText
+        )}
       </p>
 
       {/* Memorisation reveal hint */}

@@ -58,6 +58,7 @@ const DEFAULT_PREFS: ReaderPrefs = {
   commentaryLang: "pu",
   commentarySource: "fareedkot",
   showWordMeanings: false,
+  showVisraam: false,
   isTapToTranslit: false,
   translitStyle: "en",
 };
@@ -86,6 +87,7 @@ interface ReaderPrefsContextValue extends ReaderPrefs {
   setCommentaryLang: (lang: CommentaryLang) => void;
   setCommentarySource: (source: CommentarySource) => void;
   toggleWordMeanings: () => void;
+  toggleVisraam: () => void;
   toggleTapToTranslit: () => void;
   setTranslitStyle: (style: TranslitStyle) => void;
 }
@@ -170,6 +172,7 @@ function sanitizePrefs(raw: unknown): ReaderPrefs {
     "isParallelTranslations",
     "showKanji",
     "showWordMeanings",
+    "showVisraam",
     "isTapToTranslit",
   ];
   for (const key of boolKeys) {
@@ -344,6 +347,8 @@ export function ReaderPrefsProvider({ children }: { children: ReactNode }) {
       setPrefs((p) => ({ ...p, commentaryLang }));
     const toggleWordMeanings = () =>
       setPrefs((p) => ({ ...p, showWordMeanings: !p.showWordMeanings }));
+    const toggleVisraam = () =>
+      setPrefs((p) => ({ ...p, showVisraam: !p.showVisraam }));
     const setCommentarySource = (commentarySource: CommentarySource) =>
       setPrefs((p) => ({ ...p, commentarySource }));
     const toggleTapToTranslit = () =>
@@ -371,6 +376,7 @@ export function ReaderPrefsProvider({ children }: { children: ReactNode }) {
       setCommentaryLang,
       setCommentarySource,
       toggleWordMeanings,
+      toggleVisraam,
       toggleTapToTranslit,
       setTranslitStyle,
     };

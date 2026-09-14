@@ -14,7 +14,7 @@
  */
 
 import { cache } from "react";
-import type { Ang, Bani, HukamnamaInfo, SearchResult, VerseLine } from "./types";
+import type { Ang, Bani, DailyShabad, HukamnamaInfo, SearchResult, VerseLine } from "./types";
 import { MAX_ANG, MIN_ANG } from "./types";
 import { NITNEM_BANIS } from "./nitnem";
 
@@ -112,6 +112,16 @@ interface BaniDbVerseRaw {
   writer?: { english?: string | null } | null;
   pageNo?: number;
   lineNo?: number;
+  /**
+   * Santhya pause data.  Each source holds one `{p, t}` marker or an array
+   * of them: `p` = 0-based word index the pause follows, `t` = "v" (short)
+   * or "y" (long).  `p` sometimes arrives as a string.
+   */
+  visraam?: {
+    sttm?: { p?: number | string; t?: string } | { p?: number | string; t?: string }[];
+    sttm2?: { p?: number | string; t?: string } | { p?: number | string; t?: string }[];
+    igurbani?: { p?: number | string; t?: string } | { p?: number | string; t?: string }[];
+  };
 }
 
 /** Shape of the `/v2/angs/:id` response envelope. */
@@ -119,6 +129,15 @@ interface BaniDbAngResponse {
   page?: BaniDbVerseRaw[];
   baniInfo?: { unicode?: string };
   source?: { english?: string };
+}
+
+/** Envelope returned by BaniDB's `/v2/random/:sourceID` endpoint. */
+interface BaniDbRandomResponse {
+  shabadInfo?: {
+    raag?: { english?: string };
+    writer?: { english?: string };
+  };
+  verses?: BaniDbVerseRaw[];
 }
 
 /** Envelope returned by BaniDB's `/v2/banis/:id` endpoint (numeric id only). */
@@ -139,6 +158,47 @@ interface BaniDbHukamnamaResponse {
     };
     verses?: BaniDbVerseRaw[];
   }[];
+}
+
+/**
+ * Normalises one BaniDB visraam source (`sttm` / `sttm2` / `igurbani`) into a
+ * clean marker list.  Returns `undefined` when the source carries no usable
+ * markers (out-of-range or malformed positions are dropped).
+ */
+function parseVisraamSource(
+  source: { p?: number | string; t?: string } | { p?: number | string; t?: string }[] | undefined
+): { pos: number; long: boolean }[] | undefined {
+  if (!source) return undefined;
+  const entries = Array.isArray(source) ? source : [source];
+  const markers: { pos: number; long: boolean }[] = [];
+  for (const entry of entries) {
+    const pos = typeof entry.p === "string" ? parseInt(entry.p, 10) : entry.p;
+    if (typeof pos !== "number" || Number.isNaN(pos) || pos < 0) continue;
+    markers.push({ pos, long: entry.t === "y" });
+  }
+  return markers.length > 0 ? markers : undefined;
+}
+
+/**
+ * Picks the verse's visraam markers from the first non-empty BaniDB source,
+ * deduping shared positions with the longer pause winning.
+ */
+function parseVisraam(
+  visraam: BaniDbVerseRaw["visraam"]
+): { pos: number; long: boolean }[] | undefined {
+  if (!visraam) return undefined;
+  const markers =
+    parseVisraamSource(visraam.sttm) ??
+    parseVisraamSource(visraam.sttm2) ??
+    parseVisraamSource(visraam.igurbani);
+  if (!markers) return undefined;
+  const byPos = new Map<number, boolean>();
+  for (const m of markers) {
+    byPos.set(m.pos, (byPos.get(m.pos) ?? false) || m.long);
+  }
+  return [...byPos.entries()]
+    .map(([pos, long]) => ({ pos, long }))
+    .sort((a, b) => a.pos - b.pos);
 }
 
 /**
@@ -177,6 +237,9 @@ function mapVerse(raw: BaniDbVerseRaw, angNumber: number, index: number): VerseL
     // Word-by-word meanings (pad-arth); absent on some verses.
     padArth:
       raw.translation?.pu?.pss?.unicode ?? raw.translation?.pu?.pss?.gurmukhi ?? undefined,
+    // Santhya pause markers (feature 29): first non-empty visraam source
+    // wins; positions deduped with the longer pause taking precedence.
+    visraam: parseVisraam(raw.visraam),
     // Genuine commentary sources (feature 21): SGPC English rendering for the
     // English side, and both the Guru Granth Darpan + Faridkot Teeka for the
     // Punjabi side.  Each falls back gracefully when the API omits a source.
@@ -274,6 +337,40 @@ export const getBani = cache(async function getBani(id: number): Promise<Bani | 
     return null; // fail soft — the bani page renders its not-found state
   }
 });
+
+/**
+ * Fetches a random full shabad from BaniDB (`/v2/random/1`, source 1 = Sri
+ * Guru Granth Sahib Ji) for the Shabad of the Day card.
+ *
+ * The verses arrive in the standard shape, so they map through `mapVerse`
+ * and power the same translation blocks.  Day-stability (same shabad all
+ * day) is handled client-side: the card caches the result in localStorage
+ * under the local date key and only refetches when the day rolls over.
+ *
+ * @returns the random shabad, or `null` on any fetch failure
+ */
+export async function getShabadOfDay(): Promise<DailyShabad | null> {
+  try {
+    const res = await fetchUpstream(`${BANIDB_BASE}/random/1`, {
+      cache: "no-store", // randomness is the point — never serve a stale pick
+    });
+    if (!res.ok) return null;
+
+    const data: BaniDbRandomResponse = await res.json();
+    const rows = (data.verses ?? []).filter((v) => !!v?.verse?.unicode);
+    if (rows.length === 0) return null;
+
+    const ang = rows[0].pageNo ?? MIN_ANG;
+    return {
+      ang,
+      raag: data.shabadInfo?.raag?.english ?? undefined,
+      writer: data.shabadInfo?.writer?.english ?? undefined,
+      verses: rows.map((raw, i) => mapVerse(raw, ang, i)),
+    };
+  } catch {
+    return null; // fail soft — the card renders its fallback state
+  }
+}
 
 /**
  * Full-text search across all Angs via BaniDB's search endpoint.

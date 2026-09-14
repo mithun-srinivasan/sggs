@@ -7,12 +7,13 @@
  *
  * Contains:
  *   - `getTodaysHukamnama()` — the Daily Hukamnama (SGPC website + BaniDB text)
+ *   - `getDailyShabad()` — a random shabad for the Shabad of the Day card
  */
 
 "use server";
 
-import { getHukamnama } from "@/lib/data";
-import type { HukamnamaInfo } from "@/lib/types";
+import { getHukamnama, getShabadOfDay } from "@/lib/data";
+import type { DailyShabad, HukamnamaInfo } from "@/lib/types";
 
 /**
  * Returns today's Daily Hukamnama for the Home page.
@@ -20,4 +21,12 @@ import type { HukamnamaInfo } from "@/lib/types";
  */
 export async function getTodaysHukamnama(): Promise<HukamnamaInfo | null> {
   return getHukamnama();
+}
+
+/**
+ * Returns a random shabad for the Shabad of the Day card.
+ * Day-stability is handled client-side (localStorage date-keyed cache).
+ */
+export async function getDailyShabad(): Promise<DailyShabad | null> {
+  return getShabadOfDay();
 }

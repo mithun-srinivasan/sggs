@@ -75,8 +75,155 @@ export const LAGAN_MATRA: LaganMatra[] = [
   { sign: "ੈ", name: "Dulava", example: "ਕੈ", roman: "kai" },
   { sign: "ੋ", name: "Hora", example: "ਕੋ", roman: "ko" },
   { sign: "ੌ", name: "Kanaura", example: "ਕੌ", roman: "kau" },
-  { sign: "ੰ", name: "Bindi", example: "ਕੰ", roman: "kan" },
+  { sign: "ੰ", name: "Tippi", example: "ਕੰ", roman: "kan" },
 ];
+
+/**
+ * Roman consonants mapped to Gurmukhi, longest-match first.
+ * Approximate aliases included (`q`/`c` → ਕ, `z` → ਜ, `f` → ਫ, `w` → ਵ)
+ * so English-keyboard typing degrades gracefully instead of dropping letters.
+ */
+const ROMAN_CONSONANTS: Record<string, string> = {
+  kh: "ਖ",
+  gh: "ਘ",
+  ch: "ਚ",
+  chh: "ਛ",
+  jh: "ਝ",
+  tth: "ਠ",
+  ddh: "ਢ",
+  th: "ਥ",
+  dh: "ਧ",
+  ph: "ਫ",
+  bh: "ਭ",
+  rh: "ੜ",
+  sh: "ਸ਼",
+  ng: "ਙ",
+  ny: "ਞ",
+  nn: "ਣ",
+  tt: "ਟ",
+  dd: "ਡ",
+  k: "ਕ",
+  g: "ਗ",
+  j: "ਜ",
+  t: "ਤ",
+  d: "ਦ",
+  n: "ਨ",
+  p: "ਪ",
+  f: "ਫ",
+  b: "ਬ",
+  m: "ਮ",
+  y: "ਯ",
+  r: "ਰ",
+  l: "ਲ",
+  v: "ਵ",
+  w: "ਵ",
+  s: "ਸ",
+  h: "ਹ",
+  q: "ਕ",
+  z: "ਜ",
+  c: "ਕ",
+};
+
+/** Roman vowels: standalone form (word start) and dependent sign (after a consonant). */
+const ROMAN_VOWELS: Record<string, { alone: string; sign: string | null }> = {
+  aa: { alone: "ਆ", sign: "ਾ" },
+  ai: { alone: "ਐ", sign: "ੈ" },
+  au: { alone: "ਔ", sign: "ੌ" },
+  ee: { alone: "ਈ", sign: "ੀ" },
+  oo: { alone: "ਊ", sign: "ੂ" },
+  a: { alone: "ਅ", sign: null }, // inherent vowel — nothing written
+  e: { alone: "ਏ", sign: "ੇ" },
+  i: { alone: "ਇ", sign: "ਿ" },
+  o: { alone: "ਓ", sign: "ੋ" },
+  u: { alone: "ਉ", sign: "ੁ" },
+};
+
+/**
+ * Consonants before which a preceding `n` takes bindi (ੰ) rather than a
+ * dental ਨ — e.g. santokh → ਸੰਤੋਖ, anand → ਅਨੰਦ, singh → ਸਿੰਘ.
+ * Nasals, semivowels and `h` keep the plain ਨ (manmohan → ਮਨਮੋਹਨ).
+ */
+const BINDI_NEXT =
+  /^(kh|gh|ch|chh|jh|tt|tth|dd|ddh|t|th|d|dh|p|ph|b|bh|k|g|j|s|sh|f)/;
+
+/** True for characters inside the Gurmukhi Unicode block. */
+export function isGurmukhiChar(ch: string): boolean {
+  const code = ch.charCodeAt(0);
+  return code >= 0x0a00 && code <= 0x0a7f;
+}
+
+/**
+ * Transliterates English-keyboard Roman text into Gurmukhi (feature 32).
+ *
+ * Same scheme as the Learn-quiz romanisations (`aa` → ਆ/ਾ, `ee` → ਈ/ੀ …),
+ * longest-match tokenising, standard phonetic-keyboard behaviour:
+ *   - a vowel after a consonant becomes its dependent sign
+ *     (`satinaam` → ਸਤਿਨਾਮ, `prasaad` → ਪਰਸਾਦ);
+ *   - `n` before stops/sibilants becomes bindi (`anand` → ਅਨੰਦ);
+ *   - existing Gurmukhi, digits, spaces and punctuation pass through;
+ *   - unmapped Latin letters pass through untouched.
+ *
+ * Like any phonetic keyboard, spelling matters: `vaahiguroo` → ਵਾਹਿਗੁਰੂ
+ * but `waheguru` gives ਵਾਹੇਗੁਰੁ — the search box previews the conversion
+ * so the user can adjust before submitting.
+ */
+export function romanToGurmukhi(input: string): string {
+  const text = input.toLowerCase();
+  const keys = [...Object.keys(ROMAN_CONSONANTS), ...Object.keys(ROMAN_VOWELS)].sort(
+    (a, b) => b.length - a.length
+  );
+  let out = "";
+  let consonantPending = false;
+  let i = 0;
+  while (i < text.length) {
+    const ch = text[i];
+    // Pass through anything that is not a convertible Latin letter.
+    if (!/[a-z]/.test(ch)) {
+      out += input[i];
+      consonantPending = false;
+      i += 1;
+      continue;
+    }
+    let token: string | null = null;
+    for (const key of keys) {
+      if (text.startsWith(key, i)) {
+        token = key;
+        break;
+      }
+    }
+    if (token === null) {
+      out += input[i]; // unmapped letter (x, …) — keep verbatim
+      consonantPending = false;
+      i += 1;
+      continue;
+    }
+    // Bindi rule: `n` before a stop/sibilant nasalises the syllable.
+    if (token === "n" && BINDI_NEXT.test(text.slice(i + 1))) {
+      out += "ੰ";
+      consonantPending = false;
+      i += 1;
+      continue;
+    }
+    const consonant = ROMAN_CONSONANTS[token];
+    if (consonant !== undefined) {
+      out += consonant;
+      consonantPending = true;
+      i += token.length;
+      continue;
+    }
+    // Vowel token.
+    const vowel = ROMAN_VOWELS[token];
+    if (consonantPending && vowel.sign !== undefined) {
+      if (vowel.sign !== null) out += vowel.sign;
+      consonantPending = false;
+    } else {
+      out += vowel.alone;
+      consonantPending = false;
+    }
+    i += token.length;
+  }
+  return out;
+}
 
 /** Populates a multiple-choice question round; shuffled by the component. */
 export function shuffleAkhar<T>(arr: T[]): T[] {

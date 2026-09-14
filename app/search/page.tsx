@@ -4,7 +4,11 @@
  * Full-text search interface for Sri Guru Granth Sahib Ji.
  *
  * Behaviour:
- *   - The user types a Gurmukhi or English search term into the input field.
+ *   - The user types a Gurmukhi, Roman-letter, or English search term.
+ *   - In Gurmukhi mode, Roman keystrokes are transliterated live
+ *     (`satinaam` → ਸਤਿਨਾਮ) with a preview of the converted query; existing
+ *     Gurmukhi passes through untouched.  In English mode the term is sent
+ *     as-is against the translations.
  *   - Pressing Enter or tapping a quick-search suggestion triggers `runSearch`
  *     (a server action that calls BaniDB's `/v2/search` endpoint).
  *   - Results are displayed as a list of links that deep-link directly to the
@@ -19,7 +23,16 @@ import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { ArrowLeft, Search as SearchIcon, Loader2, X } from "lucide-react";
 import type { SearchResult } from "@/lib/types";
+import { romanToGurmukhi } from "@/lib/gurmukhi";
 import { runSearch } from "./actions";
+
+/** Search input modes: Gurmukhi (with Roman transliteration) or English. */
+type SearchMode = "pa" | "en";
+
+/** True when the term already contains Gurmukhi script (U+0A00-U+0A7F). */
+function hasGurmukhi(term: string): boolean {
+  return /[\u0A00-\u0A7F]/.test(term);
+}
 
 /** Pre-filled quick search suggestions shown when no search has been performed yet. */
 const QUICK_SEARCHES = ["ੴ", "ਸਤਿ ਨਾਮੁ", "ਵਾਹਿਗੁਰੂ", "Japji", "Truth", "Guru Nanak"];
@@ -27,6 +40,9 @@ const QUICK_SEARCHES = ["ੴ", "ਸਤਿ ਨਾਮੁ", "ਵਾਹਿਗੁਰ�
 export default function SearchPage() {
   /** The raw text in the search input field. */
   const [query, setQuery] = useState("");
+
+  /** Input mode: Gurmukhi (Roman auto-converts) or English translations. */
+  const [mode, setMode] = useState<SearchMode>("pa");
 
   /** The current set of results (may be empty if no matches were found). */
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -41,18 +57,37 @@ export default function SearchPage() {
   const [error, setError] = useState(false);
 
   /**
+   * Resolves the submitted term: in Gurmukhi mode, Roman text is converted
+   * (existing Gurmukhi passes through); in English mode it is sent as-is.
+   */
+  const resolveTerm = (term: string): string => {
+    const trimmed = term.trim();
+    if (mode === "pa" && trimmed && !hasGurmukhi(trimmed)) {
+      return romanToGurmukhi(trimmed);
+    }
+    return trimmed;
+  };
+
+  /** Live preview of the converted query (empty when nothing to convert). */
+  const preview =
+    mode === "pa" && /[a-zA-Z]/.test(query) && !hasGurmukhi(query)
+      ? romanToGurmukhi(query.trim())
+      : "";
+
+  /**
    * Executes a search for the given term.
    * Updates `results`, `query`, and the `loading`/`searched` flags.
    * Any failure surfaces an error state instead of leaving the spinner spinning.
    */
   const doSearch = async (term: string) => {
-    if (!term.trim()) return;
+    const resolved = resolveTerm(term);
+    if (!resolved) return;
     setQuery(term);
     setLoading(true);
     setSearched(true);
     setError(false);
     try {
-      const res = await runSearch(term);
+      const res = await runSearch(resolved);
       setResults(res);
     } catch {
       setResults([]);
@@ -81,6 +116,35 @@ export default function SearchPage() {
             <ArrowLeft size={18} />
           </Link>
 
+          {/* Script mode toggle */}
+          <div
+            className="flex shrink-0 items-center rounded-lg border border-[var(--border)] p-0.5"
+            role="group"
+            aria-label="Search language"
+          >
+            {(
+              [
+                { id: "pa", label: "ਗੁਰਮੁਖੀ" },
+                { id: "en", label: "ABC" },
+              ] as { id: SearchMode; label: string }[]
+            ).map(({ id, label }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setMode(id)}
+                aria-pressed={mode === id}
+                title={id === "pa" ? "Gurmukhi (Roman letters convert automatically)" : "English translations"}
+                className={`min-h-[40px] px-2.5 text-xs font-semibold transition rounded ${
+                  mode === id
+                    ? "bg-[var(--accent)] text-white"
+                    : "text-[var(--text-muted)] hover:text-[var(--text)]"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
           <form onSubmit={handleSubmit} className="flex flex-1 items-center">
             <div className="flex flex-1 items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 focus-within:border-[var(--accent)]">
               <SearchIcon size={18} className="text-[var(--text-muted)]" />
@@ -88,7 +152,11 @@ export default function SearchPage() {
                 autoFocus
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search Gurbani by Gurmukhi or English..."
+                placeholder={
+                  mode === "pa"
+                    ? "Type Gurmukhi or Roman letters (satinaam → ਸਤਿਨਾਮ)..."
+                    : "Search English translations..."
+                }
                 className="w-full bg-transparent text-sm text-[var(--text)] outline-none placeholder:text-[var(--text-muted)]"
               />
               {/* Clear button — only visible when the input is non-empty */}
@@ -111,13 +179,23 @@ export default function SearchPage() {
       </header>
 
       <main className="mx-auto max-w-3xl px-5 py-8 sm:px-8">
+        {/* Live transliteration preview (Gurmukhi mode, Roman input). */}
+        {preview && preview !== query.trim() && !loading && (
+          <p className="mb-4 text-center text-xs text-[var(--text-muted)]">
+            Will search:{" "}
+            <span dir="auto" lang="pa" className="font-gurmukhi text-sm font-semibold text-[var(--accent)]">
+              {preview}
+            </span>
+          </p>
+        )}
+
         {/* Landing state — shown before any search has been performed */}
         {!searched && (
           <div className="py-8 space-y-6 text-center">
             <div>
               <h2 className="text-base font-bold text-[var(--text)]">Search Across All 1430 Angs</h2>
               <p className="text-xs text-[var(--text-muted)] mt-1">
-                Enter text in Gurmukhi script or English translation.
+                Type Gurmukhi directly, Roman letters (auto-converted), or switch to ABC for English.
               </p>
             </div>
 

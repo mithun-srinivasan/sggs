@@ -22,7 +22,7 @@ const CACHE = "sggs-reader-v2";
 const SHELL_CACHE = `${CACHE}-shell`;
 
 /** Entry documents precached on install for instant offline opens. */
-const SHELL_URLS = ["/", "/search", "/bookmarks", "/ang/1", "/learn", "/nitnem"];
+const SHELL_URLS = ["/", "/search", "/bookmarks", "/ang/1", "/learn", "/nitnem", "/calendar"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

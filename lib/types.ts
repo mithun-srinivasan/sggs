@@ -63,6 +63,13 @@ export interface VerseLine {
    */
   padArth?: string;
   /**
+   * Santhya pause markers (visraam) for the verse, from BaniDB's `visraam`
+   * sources (Damdami Taksal tradition).  Each entry marks a pause AFTER the
+   * 0-based word at `pos`: `long=false` → short pause (,), `long=true` →
+   * longer pause (;).  Empty when the API provides none.
+   */
+  visraam?: { pos: number; long: boolean }[];
+  /**
    * Genuine verse commentary (teeka) drawn from BaniDB's dedicated commentary
    * sources — never a re-label of the plain translation:
    *   - `en`      → SGPC official English rendering (BaniDB `en.ms`), falling
@@ -182,6 +189,18 @@ export interface HukamnamaInfo {
   sourceNote: string;
 }
 
+/** A random full shabad served as the Shabad of the Day. */
+export interface DailyShabad {
+  /** Ang of the shabad's first verse (read-in-context target). */
+  ang: number;
+  /** Raag name when the API provides it. */
+  raag?: string;
+  /** Writer attribution when the API provides it. */
+  writer?: string;
+  /** The shabad's verses in order. */
+  verses: VerseLine[];
+}
+
 /** A single Gurmukhi akhar (letter) used by the Learn-Gurmukhi practice page. */
 export interface GurmukhiAkhar {
   /** Gurmukhi character (e.g. "ਅ"). */
@@ -249,6 +268,8 @@ export interface ReaderPrefs {
   commentaryLang: CommentaryLang;
   /** Displays the word-by-word meanings (pad-arth) block under each verse. */
   showWordMeanings: boolean;
+  /** Shows Santhya pause (visraam) markers inline in the Gurmukhi line. */
+  showVisraam: boolean;
   /** Which genuine Punjabi teeka to use when `commentaryLang` is `pu`. */
   commentarySource: CommentarySource;
   // -- tap-to-transliterate words (feature 19) --------------------------------

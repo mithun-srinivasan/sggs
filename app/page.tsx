@@ -24,6 +24,8 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useReaderPrefs } from "@/components/ReaderPrefsProvider";
 import HukamnamaCard from "@/components/HukamnamaCard";
+import ReadingHeatmap from "@/components/ReadingHeatmap";
+import ShabadOfDayCard from "@/components/ShabadOfDayCard";
 import NitnemCard from "@/components/NitnemCard";
 import ReadingJourney from "@/components/ReadingJourney";
 import GurpurabCalendar from "@/components/GurpurabCalendar";
@@ -419,6 +421,11 @@ export default function HomePage() {
           <HukamnamaCard />
 
           {/* -------------------------------------------------------------- */}
+          {/* Shabad of the Day — a random shabad, stable for the whole day   */}
+          {/* -------------------------------------------------------------- */}
+          <ShabadOfDayCard />
+
+          {/* -------------------------------------------------------------- */}
           {/* Daily Nitnem — the five daily prayers                           */}
           {/* -------------------------------------------------------------- */}
           <NitnemCard />
@@ -427,6 +434,11 @@ export default function HomePage() {
           {/* Reading journey — progress, streak, history, Sehaj Paath plan   */}
           {/* -------------------------------------------------------------- */}
           <ReadingJourney />
+
+          {/* -------------------------------------------------------------- */}
+          {/* Reading heatmap — 20-week activity grid from visit history      */}
+          {/* -------------------------------------------------------------- */}
+          <ReadingHeatmap />
 
           {/* -------------------------------------------------------------- */}
           {/* Quick Ang Navigation — slider + quick-jump markers + number input */}

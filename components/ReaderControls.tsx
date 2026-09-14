@@ -304,6 +304,12 @@ export default function ReaderControls() {
             onToggle={prefs.toggleWordMeanings}
             hint="Show word-by-word meanings (pad-arth) under each verse"
           />
+          <ToggleRow
+            label="Visraam Pauses"
+            pressed={prefs.showVisraam}
+            onToggle={prefs.toggleVisraam}
+            hint="Show Santhya pause marks (, short · ; long) in the Gurmukhi line"
+          />
         </div>
 
         {/* Commentary language selector (feature 21) */}
