@@ -25,7 +25,7 @@ export default function AngEndSentinel({
       (entries) => {
         if (entries[0].isIntersecting && !triggered) {
           setTriggered(true);
-          // Seamless uninterrupted reading transition to next Ang
+          window.dispatchEvent(new CustomEvent("crossfade-start"));
           router.push(`/ang/${nextAng}`);
         }
       },
@@ -71,6 +71,7 @@ export default function AngEndSentinel({
         <button
           onClick={() => {
             setTriggered(true);
+            window.dispatchEvent(new CustomEvent("crossfade-start"));
             router.push(`/ang/${nextAng}`);
           }}
           className="group inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-[var(--accent)] px-5 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:opacity-90 active:scale-[0.97]"

@@ -36,7 +36,7 @@ export default function VerseCard({
       style={{ fontSize: `${prefs.fontScale}rem` }}
       id={line.id}
     >
-      {/* Primary Scripture: Gurmukhi (Quran.com hierarchy — dominant size, solid dignified contrast) */}
+      {/* Primary Scripture: Gurmukhi — dominant size, solid dignified contrast */}
       <p
         dir="auto"
         lang="pa"

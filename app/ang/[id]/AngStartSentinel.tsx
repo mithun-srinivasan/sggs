@@ -17,7 +17,7 @@ export default function AngStartSentinel({
   const isFirstAng = angNumber <= minAng;
 
   useEffect(() => {
-    if (isFirstAng) return;
+    if (isFirstAng || triggered.current) return;
 
     previousScrollY.current = window.scrollY;
 
@@ -33,6 +33,7 @@ export default function AngStartSentinel({
 
       if (reachedTop && scrollingUp && hasScrolledDown.current && !triggered.current) {
         triggered.current = true;
+        window.dispatchEvent(new CustomEvent("crossfade-start"));
         router.push(`/ang/${angNumber - 1}`);
       }
 

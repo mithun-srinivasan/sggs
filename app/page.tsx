@@ -36,7 +36,7 @@ const SACRED_VERSES = [
     gurmukhi: "ਪਵਣੁ ਗੁਰੂ ਪਾਣੀ ਪਿਤਾ ਮਾਤਾ ਧਰਤਿ ਮਹਤੁ ॥ ਦਿਵਸੁ ਰਾਤਿ ਦੁਇ ਦਾਈ ਦਾਇਆ ਖੇਲੈ ਸਗਲ ਜਗਤੁ ॥",
     transliteration: "pavan guroo paanee pitaa maataa dharat mahat || dhivas raat dhue dhaaee dhaaiaa khelai sagal jagat ||",
     translation: "Air is the Guru, Water is the Father, and Earth is the Great Mother of all. Day and night are the two nurses, in whose lap the whole world plays.",
-    ang: 8,
+    ang: 4,
     writer: "Guru Nanak Dev Ji",
   },
   {
@@ -48,12 +48,12 @@ const SACRED_VERSES = [
     writer: "Guru Arjan Dev Ji",
   },
   {
-    title: "Raag Asa — Divine Father & Mother",
+    title: "Bhagat Kabir — Sacred Salok",
     gurmukhi: "ਤੂ ਮੇਰਾ ਪਿਤਾ ਤੂਹੈ ਮੇਰਾ ਮਾਤਾ ॥ ਤੂ ਮੇਰਾ ਬੰਧਪੁ ਤੂ ਮੇਰਾ ਭ੍ਰਾਤਾ ॥",
     transliteration: "too meraa pitaa toohai meraa maataa || too meraa bandhap too meraa bhraataa ||",
     translation: "You are my Father, and You are my Mother. You are my Relative, and You are my Brother.",
-    ang: 385,
-    writer: "Guru Arjan Dev Ji",
+    ang: 1374,
+    writer: "Bhagat Kabir",
   },
   {
     title: "Anand Sahib — Eternal Bliss",

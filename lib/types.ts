@@ -11,9 +11,9 @@ export interface VerseLine {
   gurmukhi: string;        // Unicode Gurmukhi script — always verse.unicode, NEVER verse.gurmukhi (legacy ASCII font)
   transliteration: string; // Roman transliteration
   translations: {
-    en?: string;            // English (Sant Singh Khalsa)
-    pu?: string;             // Punjabi (Sant Singh Khalsa) — verified BaniDB path, see lib/data.ts
-    es?: string;              // Spanish (Sant Singh Khalsa)
+    en?: string;            // English translation
+    pu?: string;             // Punjabi translation
+    es?: string;              // Spanish translation
   };
   writer?: string;         // optional — e.g. "Guru Nanak Dev Ji" (null-guarded on fetch + render)
   pageNo?: number;

@@ -5,6 +5,8 @@ import {
   useContext,
   useEffect,
   useState,
+  useCallback,
+  useRef,
   type ReactNode,
 } from "react";
 import type { ReaderPrefs, ThemeMode, TranslationLang } from "@/lib/types";
@@ -33,6 +35,8 @@ const ReaderPrefsContext = createContext<ReaderPrefsContextValue | null>(null);
 export function ReaderPrefsProvider({ children }: { children: ReactNode }) {
   const [prefs, setPrefs] = useState<ReaderPrefs>(DEFAULT_PREFS);
   const [hydrated, setHydrated] = useState(false);
+  const prefsRef = useRef<ReaderPrefs>(DEFAULT_PREFS);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     try {
@@ -47,7 +51,28 @@ export function ReaderPrefsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!hydrated) return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
+    prefsRef.current = prefs;
+  }, [prefs, hydrated]);
+
+  const persistPrefs = useCallback(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(prefsRef.current));
+    } catch {
+      // ignore storage errors
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(persistPrefs, 500);
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [prefs, hydrated, persistPrefs]);
+
+  useEffect(() => {
+    if (!hydrated) return;
     const root = document.documentElement;
     root.classList.remove("theme-light", "theme-dark", "theme-sepia");
     root.classList.add(`theme-${prefs.theme}`);
@@ -63,9 +88,15 @@ export function ReaderPrefsProvider({ children }: { children: ReactNode }) {
     setTranslationLang: (translationLang) =>
       setPrefs((p) => ({ ...p, translationLang })),
     increaseFontSize: () =>
-      setPrefs((p) => ({ ...p, fontScale: Math.min(1.6, +(p.fontScale + 0.1).toFixed(2)) })),
+      setPrefs((p) => ({
+        ...p,
+        fontScale: Math.min(1.6, +(p.fontScale + 0.1).toFixed(2)),
+      })),
     decreaseFontSize: () =>
-      setPrefs((p) => ({ ...p, fontScale: Math.max(0.8, +(p.fontScale - 0.1).toFixed(2)) })),
+      setPrefs((p) => ({
+        ...p,
+        fontScale: Math.max(0.8, +(p.fontScale - 0.1).toFixed(2)),
+      })),
   };
 
   return (

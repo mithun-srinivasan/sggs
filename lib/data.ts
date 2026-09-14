@@ -35,7 +35,7 @@ function mapVerse(raw: BaniDbVerseRaw, angNumber: number, index: number): VerseL
     transliteration: raw.transliteration?.english ?? "",
     translations: {
       en: raw.translation?.en?.bdb ?? undefined,
-      // Punjabi translation path — verified against live API response shape
+      // Punjabi translation via BaniDB's pu.ss.unicode path
       pu: raw.translation?.pu?.ss?.unicode ?? raw.translation?.pu?.ss?.gurmukhi ?? undefined,
       es: raw.translation?.es?.sn ?? undefined,
     },
