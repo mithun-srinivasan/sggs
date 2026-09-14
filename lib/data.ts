@@ -20,6 +20,53 @@ import { MAX_ANG, MIN_ANG } from "./types";
 /** Base URL of the public BaniDB v2 REST API. */
 const BANIDB_BASE = "https://api.banidb.com/v2";
 
+/**
+ * Per-attempt network timeout (ms) for upstream API calls.
+ *
+ * Build-time static generation pre-renders 2870 pages, each fetching BaniDB
+ * live.  A single stalled response with no timeout hangs a build worker past
+ * Next.js's per-page static-generation budget (60s default) and fails the
+ * entire Vercel build — so every upstream fetch must be strictly bounded.
+ */
+const FETCH_TIMEOUT_MS = 20000;
+
+/** How many times a failed upstream fetch is retried before giving up. */
+const FETCH_RETRIES = 2;
+
+/**
+ * `fetch()` with a hard timeout and limited retries.
+ *
+ * A hung upstream connection is aborted after `FETCH_TIMEOUT_MS`; transient
+ * failures (timeout, 5xx, network reset) are retried with a short backoff.
+ * Permanent failures (4xx) are returned immediately so the caller can fail
+ * soft.  Throws only when every attempt fails.
+ */
+async function fetchUpstream(url: string, init?: RequestInit): Promise<Response> {
+  let lastError: unknown = null;
+  for (let attempt = 0; attempt <= FETCH_RETRIES; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    try {
+      const res = await fetch(url, { ...init, signal: controller.signal });
+      // Retry server-side errors; client errors (4xx) are permanent.
+      if (res.status >= 500 && attempt < FETCH_RETRIES) {
+        lastError = new Error(`Upstream ${res.status} for ${url}`);
+        await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+        continue;
+      }
+      return res;
+    } catch (err) {
+      lastError = err;
+      if (attempt < FETCH_RETRIES) {
+        await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+      }
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error(`Upstream fetch failed: ${url}`);
+}
+
 /** URL of the official SGPC daily-Hukamnama WordPress page (Amritsar). */
 const SGPC_HUKAMNAMA_URL = "https://www.sgpc.net/hukamnama/";
 
@@ -147,7 +194,7 @@ export const getAng = cache(
     if (angNumber < MIN_ANG || angNumber > MAX_ANG) return null;
 
   try {
-    const res = await fetch(`${BANIDB_BASE}/angs/${angNumber}`, {
+    const res = await fetchUpstream(`${BANIDB_BASE}/angs/${angNumber}`, {
       // `revalidate: false` — scripture is immutable, cache the response forever.
       next: { revalidate: false },
     });
@@ -185,7 +232,7 @@ export async function searchGurbani(term: string): Promise<SearchResult[]> {
   if (!trimmed) return []; // empty query → no results, no network call
 
   try {
-    const res = await fetch(`${BANIDB_BASE}/search/${encodeURIComponent(trimmed)}`, {
+    const res = await fetchUpstream(`${BANIDB_BASE}/search/${encodeURIComponent(trimmed)}`, {
       cache: "no-store", // always hit the live API — data is dynamic
     });
     if (!res.ok) return [];
@@ -264,7 +311,7 @@ export async function getHukamnama(): Promise<HukamnamaInfo | null> {
   /** Scrapes the SGPC page for the day's official Hukamnama scan image. */
   const fetchSgpcScan = async (): Promise<string | undefined> => {
     try {
-      const res = await fetch(SGPC_HUKAMNAMA_URL, { next: { revalidate: 21600 } });
+      const res = await fetchUpstream(SGPC_HUKAMNAMA_URL, { next: { revalidate: 21600 } });
       if (!res.ok) return undefined;
       const html = await res.text();
       const raw =
@@ -286,7 +333,7 @@ export async function getHukamnama(): Promise<HukamnamaInfo | null> {
   const fetchBaniText = async (): Promise<HukamnamaInfo | null> => {
     try {
       const url = `${BANIDB_BASE}/hukamnamas/${year}/${month}/${day}`;
-      const res = await fetch(url, { next: { revalidate: 21600 } });
+      const res = await fetchUpstream(url, { next: { revalidate: 21600 } });
       if (!res.ok) return null;
 
       const data: BaniDbHukamnamaResponse = await res.json();
