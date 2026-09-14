@@ -56,7 +56,6 @@ The available npm scripts are:
 - Displays Unicode Gurmukhi, transliteration, writer metadata when available,
   and line numbers when provided by the API.
 - Shows English or Punjabi translation when that translation exists.
-- Streams per-Ang audio from a public archive when a recording is available.
 - Copies a verse and its available supporting text to the clipboard.
 - Saves individual verses as bookmarks.
 - Provides previous and next controls in the top and bottom navigation bars.
@@ -166,7 +165,6 @@ Invalid Ang numbers show the custom not-found page and link back to Ang 1.
 - Bookmarks and preferences are browser-local and have no account or sync
   system.
 - Search depends on the BaniDB service and network availability.
-- Audio playback depends on public archive availability per Ang; not all Angs have recordings.
 
 ## License and attribution
 
