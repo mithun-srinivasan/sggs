@@ -55,6 +55,7 @@ export interface ReaderPrefs {
   showTranslation: boolean;
   translationLang: TranslationLang;
   fontScale: number; // multiplier, e.g. 0.8 – 1.6
+  isLareevarMode: boolean;
 }
 
 export const MIN_ANG = 1;

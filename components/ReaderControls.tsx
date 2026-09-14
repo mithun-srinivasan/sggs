@@ -47,6 +47,19 @@ export default function ReaderControls() {
           Translation
         </button>
 
+        <button
+          onClick={prefs.toggleLareevarMode}
+          aria-pressed={prefs.isLareevarMode}
+          title="Blend words continuously for traditional Lareevar reading"
+          className={`min-h-[44px] rounded-lg border px-4 text-xs font-semibold transition ${
+            prefs.isLareevarMode
+              ? "border-[var(--accent)] text-[var(--accent)]"
+              : "border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]"
+          }`}
+        >
+          Lareevar
+        </button>
+
         {prefs.showTranslation && (
           <div className="flex items-center rounded-lg border border-[var(--border)] p-0.5">
             {LANGS.map(({ id, label }) => (

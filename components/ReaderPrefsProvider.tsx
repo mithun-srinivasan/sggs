@@ -19,6 +19,7 @@ const DEFAULT_PREFS: ReaderPrefs = {
   showTranslation: true,
   translationLang: "en",
   fontScale: 1,
+  isLareevarMode: false,
 };
 
 interface ReaderPrefsContextValue extends ReaderPrefs {
@@ -28,6 +29,7 @@ interface ReaderPrefsContextValue extends ReaderPrefs {
   setTranslationLang: (lang: TranslationLang) => void;
   increaseFontSize: () => void;
   decreaseFontSize: () => void;
+  toggleLareevarMode: () => void;
 }
 
 const ReaderPrefsContext = createContext<ReaderPrefsContextValue | null>(null);
@@ -97,6 +99,8 @@ export function ReaderPrefsProvider({ children }: { children: ReactNode }) {
         ...p,
         fontScale: Math.max(0.8, +(p.fontScale - 0.1).toFixed(2)),
       })),
+    toggleLareevarMode: () =>
+      setPrefs((p) => ({ ...p, isLareevarMode: !p.isLareevarMode })),
   };
 
   return (

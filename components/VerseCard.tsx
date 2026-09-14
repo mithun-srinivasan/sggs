@@ -19,6 +19,10 @@ export default function VerseCard({
   const saved = isBookmarked(line.id);
   const translation = line.translations[prefs.translationLang];
 
+  const gurmukhiText = prefs.isLareevarMode
+    ? line.gurmukhi.replace(/\s+/g, "")
+    : line.gurmukhi;
+
   const handleCopy = async () => {
     try {
       const textToCopy = `${line.gurmukhi}\n${line.transliteration ? line.transliteration + "\n" : ""}${translation ? translation + "\n" : ""}— Sri Guru Granth Sahib Ji (Ang ${angNumber})`;
@@ -42,7 +46,7 @@ export default function VerseCard({
         lang="pa"
         className="font-gurmukhi text-[1.8em] font-medium leading-[1.95] text-[var(--text)] tracking-normal selection:bg-[var(--accent-light)]"
       >
-        {line.gurmukhi}
+{gurmukhiText}
       </p>
 
       {/* Secondary: Transliteration */}

@@ -8,6 +8,7 @@ import SwipeContainer from "@/components/SwipeContainer";
 import BottomNav from "./BottomNav";
 import AngStartSentinel from "./AngStartSentinel";
 import AngEndSentinel from "./AngEndSentinel";
+import AudioPlayer from "./AudioPlayer";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -77,6 +78,9 @@ export default async function AngPage({ params }: PageProps) {
 
       {/* Scroll-aware Bottom Bar */}
       <BottomNav angNumber={angNumber} maxAng={MAX_ANG} minAng={MIN_ANG} />
+
+      {/* Floating Audio Player */}
+      <AudioPlayer angId={angNumber} />
     </div>
   );
 }

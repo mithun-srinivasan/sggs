@@ -18,6 +18,8 @@ interface BookmarksContextValue {
   isBookmarked: (verseId: string) => boolean;
   toggleBookmark: (b: Omit<Bookmark, "savedAt">) => void;
   removeBookmark: (verseId: string) => void;
+  exportBookmarks: () => void;
+  importBookmarks: (json: string) => boolean;
 }
 
 const BookmarksContext = createContext<BookmarksContextValue | null>(null);
@@ -94,9 +96,53 @@ export function BookmarksProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const exportBookmarks = useCallback(() => {
+    const data = JSON.stringify(bookmarksRef.current, null, 2);
+    const blob = new Blob([data], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `sggs-reader-bookmarks-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    URL.revokeObjectURL(url);
+  }, []);
+
+  const importBookmarks = useCallback((json: string): boolean => {
+    try {
+      const parsed = JSON.parse(json);
+      if (!Array.isArray(parsed)) return false;
+      const valid = parsed.every(
+        (item: unknown) =>
+          typeof item === "object" &&
+          item !== null &&
+          "verseId" in item &&
+          "angNumber" in item &&
+          "gurmukhiSnippet" in item
+      );
+      if (!valid) return false;
+      const imported = parsed as Bookmark[];
+      setBookmarks((prev) => {
+        const existingIds = new Set(prev.map((b) => b.verseId));
+        const merged = [
+          ...imported
+            .filter((b) => !existingIds.has(b.verseId))
+            .map((b) => ({ ...b, savedAt: b.savedAt ?? Date.now() })),
+          ...prev,
+        ];
+        bookmarkSet.current = new Set(merged.map((b) => b.verseId));
+        return merged;
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
   return (
     <BookmarksContext.Provider
-      value={{ bookmarks, isBookmarked, toggleBookmark, removeBookmark }}
+      value={{ bookmarks, isBookmarked, toggleBookmark, removeBookmark, exportBookmarks, importBookmarks }}
     >
       {children}
     </BookmarksContext.Provider>
