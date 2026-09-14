@@ -10,7 +10,7 @@
  *   - Continuous mode        (feature 2)   - Focus mode              (feature 3)
  *   - Auto theme             (feature 4)   - Custom accent + OLED    (feature 5)
  *   - Memorisation mode      (feature 6)   - Parallel translations   (feature 18)
- *   - Kanji commentary       (feature 21)  - Tap-to-transliterate    (feature 19)
+ *   - Text & commentary teeka (feature 21)  - Tap-to-transliterate    (feature 19)
  *   - Transliteration script (feature 24)
  *
  * All state is read from / written to `ReaderPrefsProvider`, which persists
@@ -21,7 +21,7 @@
 
 import { Minus, Plus, Sun, Moon, Coffee } from "lucide-react";
 import { useReaderPrefs } from "./ReaderPrefsProvider";
-import type { ThemeMode, TranslationLang, TranslitStyle } from "@/lib/types";
+import type { CommentarySource, ThemeMode, TranslationLang, TranslitStyle } from "@/lib/types";
 
 /** Available themes and their display metadata. */
 const THEMES: { id: ThemeMode; label: string; icon: typeof Sun }[] = [
@@ -45,6 +45,12 @@ const TRANSLIT_STYLES: { id: TranslitStyle; label: string }[] = [
   { id: "hi", label: "Hindi" },
   { id: "ur", label: "Urdu" },
   { id: "ipa", label: "IPA" },
+];
+
+/** Genuine Punjabi teeka options for the commentary block (feature 21). */
+const COMMENTARY_SOURCES: { id: CommentarySource; label: string }[] = [
+  { id: "darpan", label: "Guru Granth Darpan" },
+  { id: "fareedkot", label: "Faridkot Teeka" },
 ];
 
 /** A labelled on/off toggle row reused for every boolean preference. */
@@ -273,10 +279,10 @@ export default function ReaderControls() {
             hint="Show English and Punjabi side-by-side"
           />
           <ToggleRow
-            label="Kanji (Commentary)"
+            label="Text &amp; Commentary"
             pressed={prefs.showKanji}
             onToggle={prefs.toggleKanji}
-            hint="Show Punjabi commentary block (Prof. Sahib Singh / Guru Granth Darpan)"
+            hint="Show the genuine verse commentary (teeka) under each verse"
           />
           <ToggleRow
             label="Tap-to-Transliterate"
@@ -285,6 +291,49 @@ export default function ReaderControls() {
             hint="Tap any Gurmukhi word to see its transliteration"
           />
         </div>
+
+        {/* Commentary language selector (feature 21) */}
+        {prefs.showKanji && (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold text-[var(--text-muted)]">Commentary Language</span>
+            <div className="flex items-center rounded-lg border border-[var(--border)] p-0.5">
+              {LANGS.map(({ id, label }) => (
+                <button
+                  key={id}
+                  onClick={() => prefs.setCommentaryLang(id)}
+                  aria-pressed={prefs.commentaryLang === id}
+                  className={`min-h-[34px] px-3 text-xs font-semibold transition rounded ${
+                    prefs.commentaryLang === id
+                      ? "bg-[var(--accent)] text-white"
+                      : "text-[var(--text-muted)] hover:text-[var(--text)]"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {/* Punjabi teeka source — only relevant when Punjabi is selected. */}
+            {prefs.commentaryLang === "pu" && (
+              <div className="flex items-center rounded-lg border border-[var(--border)] p-0.5">
+                {COMMENTARY_SOURCES.map(({ id, label }) => (
+                  <button
+                    key={id}
+                    onClick={() => prefs.setCommentarySource(id)}
+                    aria-pressed={prefs.commentarySource === id}
+                    className={`min-h-[34px] px-3 text-xs font-semibold transition rounded ${
+                      prefs.commentarySource === id
+                        ? "bg-[var(--accent)] text-white"
+                        : "text-[var(--text-muted)] hover:text-[var(--text)]"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Transliteration script selector */}
         <div className="mt-3 flex flex-wrap items-center gap-2">

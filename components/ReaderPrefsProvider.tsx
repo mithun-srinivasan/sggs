@@ -34,7 +34,7 @@ import {
   useRef,
   type ReactNode,
 } from "react";
-import type { ReaderPrefs, ThemeMode, TranslationLang, TranslitStyle } from "@/lib/types";
+import type { CommentarySource, ReaderPrefs, ThemeMode, TranslationLang, TranslitStyle } from "@/lib/types";
 
 /** localStorage key where reader preferences are persisted. */
 const STORAGE_KEY = "sgs-reader-prefs";
@@ -55,6 +55,8 @@ const DEFAULT_PREFS: ReaderPrefs = {
   isMemorizationMode: false,
   isParallelTranslations: false,
   showKanji: false,
+  commentaryLang: "pu",
+  commentarySource: "fareedkot",
   isTapToTranslit: false,
   translitStyle: "en",
 };
@@ -80,6 +82,8 @@ interface ReaderPrefsContextValue extends ReaderPrefs {
   toggleMemorizationMode: () => void;
   toggleParallelTranslations: () => void;
   toggleKanji: () => void;
+  setCommentaryLang: (lang: TranslationLang) => void;
+  setCommentarySource: (source: CommentarySource) => void;
   toggleTapToTranslit: () => void;
   setTranslitStyle: (style: TranslitStyle) => void;
 }
@@ -108,6 +112,7 @@ function hexToRgba(hex: string, alpha: number): string {
 const VALID_THEMES: ThemeMode[] = ["light", "dark", "sepia"];
 const VALID_TRANSLATIONS: TranslationLang[] = ["en", "pu"];
 const VALID_TRANSLIT_STYLES: TranslitStyle[] = ["en", "hi", "ur", "ipa"];
+const VALID_COMMENTARY_SOURCES: CommentarySource[] = ["darpan", "fareedkot"];
 const HEX_RE = /^#([0-9a-fA-F]{3}){1,2}$/;
 
 function sanitizePrefs(raw: unknown): ReaderPrefs {
@@ -130,6 +135,18 @@ function sanitizePrefs(raw: unknown): ReaderPrefs {
     (VALID_TRANSLIT_STYLES as string[]).includes(candidate.translitStyle)
   ) {
     prefs.translitStyle = candidate.translitStyle;
+  }
+  if (
+    typeof candidate.commentaryLang === "string" &&
+    (VALID_TRANSLATIONS as string[]).includes(candidate.commentaryLang)
+  ) {
+    prefs.commentaryLang = candidate.commentaryLang as TranslationLang;
+  }
+  if (
+    typeof candidate.commentarySource === "string" &&
+    (VALID_COMMENTARY_SOURCES as string[]).includes(candidate.commentarySource)
+  ) {
+    prefs.commentarySource = candidate.commentarySource as CommentarySource;
   }
   if (candidate.accentHex === null || (typeof candidate.accentHex === "string" && HEX_RE.test(candidate.accentHex))) {
     prefs.accentHex = candidate.accentHex as string | null;
@@ -319,6 +336,10 @@ export function ReaderPrefsProvider({ children }: { children: ReactNode }) {
     const toggleParallelTranslations = () =>
       setPrefs((p) => ({ ...p, isParallelTranslations: !p.isParallelTranslations }));
     const toggleKanji = () => setPrefs((p) => ({ ...p, showKanji: !p.showKanji }));
+    const setCommentaryLang = (commentaryLang: TranslationLang) =>
+      setPrefs((p) => ({ ...p, commentaryLang }));
+    const setCommentarySource = (commentarySource: CommentarySource) =>
+      setPrefs((p) => ({ ...p, commentarySource }));
     const toggleTapToTranslit = () =>
       setPrefs((p) => ({ ...p, isTapToTranslit: !p.isTapToTranslit }));
     const setTranslitStyle = (translitStyle: TranslitStyle) =>
@@ -341,6 +362,8 @@ export function ReaderPrefsProvider({ children }: { children: ReactNode }) {
       toggleMemorizationMode,
       toggleParallelTranslations,
       toggleKanji,
+      setCommentaryLang,
+      setCommentarySource,
       toggleTapToTranslit,
       setTranslitStyle,
     };

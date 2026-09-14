@@ -16,8 +16,9 @@
  *  17.  (Hukamnama uses this same component on the Home page.)
  *  18.  Parallel translations — English + Punjabi side-by-side.
  *  19.  Tap-to-transliterate — tap a Gurmukhi word to see its Romanisation.
- *  21.  Kanji / commentary — a labelled Punjabi commentary block (Prof.
- *       Sahib Singh, aka Guru Granth Darpan) under the translation.
+ *  21.  Text & commentary — a genuine, attributable teeka block (English:
+ *       SGPC Bhai Manmohan Singh, or Punjabi: Guru Granth Darpan ↑ Faridkot
+ *       Teeka), switchable via ReaderControls.
  *  24.  Transliteration script — English / Hindi / Urdu / IPA variants.
  */
 
@@ -118,6 +119,30 @@ export default function VerseCard({
    */
   const primaryTranslation = line.translations[prefs.translationLang];
   const punjabiTranslation = line.translations["pu"];
+
+  // -- Commentary / teeka (feature 21) ------------------------------------------
+
+  /**
+   * The genuine commentary text for the user's selected language and teeka.
+   * `line.commentary` is populated directly from BaniDB's dedicated teeka
+   * sources (SGPC English rendering / Guru Granth Darpan / Faridkot Teeka) —
+   * never the plain translation.  Falls back gracefully when a source is
+   * absent for a particular verse.
+   */
+  const commentaryText =
+    prefs.commentaryLang === "en"
+      ? line.commentary?.en
+      : prefs.commentarySource === "fareedkot"
+        ? line.commentary?.pu?.fareedkot ?? line.commentary?.pu?.darpan
+        : line.commentary?.pu?.darpan ?? line.commentary?.pu?.fareedkot;
+
+  /** Attribution line for the commentary block — reflects the actual source. */
+  const commentaryLabel =
+    prefs.commentaryLang === "en"
+      ? "Commentary · English (SGPC · Bhai Manmohan Singh)"
+      : prefs.commentarySource === "fareedkot"
+        ? "Commentary · Faridkot Teeka (Sant Giani Badan Singh Ji)"
+        : "Commentary · Guru Granth Darpan (Prof. Sahib Singh)";
 
   // -- Gurmukhi display -----------------------------------------------------------------
 
@@ -356,15 +381,17 @@ export default function VerseCard({
         )
       )}
 
-      {/* Kanji / commentary block — Prof. Sahib Singh (Guru Granth Darpan), served
-      by BaniDB through the `pu` translation key. */}
-      {prefs.showKanji && punjabiTranslation && (
+      {/* Text & commentary block (feature 21) — genuine teeka from BaniDB's
+      dedicated commentary sources, attributable and switchable between the
+      SGPC English rendering and the Punjabi teekas (Guru Granth Darpan ↑
+      Darpan, Faridkot Teeka). */}
+      {prefs.showKanji && commentaryText && (
         <div className={`verse-extra mt-4 rounded-lg border-l-2 border-[var(--accent)] bg-[var(--accent-light)]/40 px-3 py-2 ${hiddenMemorize ? "blur-sm select-none" : ""}`}>
           <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--accent)]">
-            Kanji · Guru Granth Darpan (Prof. Sahib Singh)
+            {commentaryLabel}
           </p>
-          <p dir="auto" lang="pa" className="font-gurmukhi mt-1 text-[0.9em] leading-relaxed text-[var(--text-secondary)]">
-            {punjabiTranslation}
+          <p dir="auto" lang={prefs.commentaryLang === "pu" ? "pa" : "en"} className="font-gurmukhi mt-1 text-[0.9em] leading-relaxed text-[var(--text-secondary)]">
+            {commentaryText}
           </p>
         </div>
       )}

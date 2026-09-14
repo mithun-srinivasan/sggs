@@ -42,8 +42,16 @@ interface BaniDbVerseRaw {
     ipa?: string;
   };
   translation?: {
-    en?: { bdb?: string }; // English translation
-    pu?: { ss?: { unicode?: string; gurmukhi?: string } }; // Punjabi translation (Prof. Sahib Singh)
+    en?: {
+      bdb?: string; // English translation (Sant Singh Khalsa)
+      ssk?: string; // English translation alias (Sant Singh Khalsa)
+      ms?: string; // English rendering (SGPC, Bhai Manmohan Singh)
+    };
+    pu?: {
+      ss?: { unicode?: string; gurmukhi?: string }; // Guru Granth Darpan (Prof. Sahib Singh)
+      ft?: { unicode?: string; gurmukhi?: string }; // Faridkot Teeka (Sant Giani Badan Singh Ji)
+      ms?: { unicode?: string; gurmukhi?: string }; // Punjabi rendering (SGPC, Bhai Manmohan Singh)
+    };
   };
   writer?: { english?: string | null } | null;
   pageNo?: number;
@@ -101,6 +109,18 @@ function mapVerse(raw: BaniDbVerseRaw, angNumber: number, index: number): VerseL
       en: raw.translation?.en?.bdb ?? undefined,
       // Punjabi arrives as Gurmukhi text — try unicode first, then the fallback.
       pu: raw.translation?.pu?.ss?.unicode ?? raw.translation?.pu?.ss?.gurmukhi ?? undefined,
+    },
+    // Genuine commentary sources (feature 21): SGPC English rendering for the
+    // English side, and both the Guru Granth Darpan + Faridkot Teeka for the
+    // Punjabi side.  Each falls back gracefully when the API omits a source.
+    commentary: {
+      en: raw.translation?.en?.ms ?? raw.translation?.en?.bdb ?? raw.translation?.en?.ssk ?? undefined,
+      pu: {
+        darpan:
+          raw.translation?.pu?.ss?.unicode ?? raw.translation?.pu?.ss?.gurmukhi ?? undefined,
+        fareedkot:
+          raw.translation?.pu?.ft?.unicode ?? raw.translation?.pu?.ft?.gurmukhi ?? undefined,
+      },
     },
     // `writer` may itself be null in the API, hence the double null-guard.
     writer: raw.writer?.english ?? undefined,

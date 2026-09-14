@@ -18,6 +18,9 @@
 /** Which translation language is currently selected for display. */
 export type TranslationLang = "en" | "pu";
 
+/** Which genuine Punjabi teeka (commentary) to display. */
+export type CommentarySource = "darpan" | "fareedkot";
+
 /**
  * Which transliteration script is displayed under each verse.
  * BaniDB supplies all four variants (English, Hindi, Urdu, IPA).
@@ -46,6 +49,25 @@ export interface VerseLine {
     en?: string;
     /** Punjabi translation (BaniDB `translation.pu.ss.unicode/gurmukhi`). */
     pu?: string;
+  };
+  /**
+   * Genuine verse commentary (teeka) drawn from BaniDB's dedicated commentary
+   * sources — never a re-label of the plain translation:
+   *   - `en`      → SGPC official English rendering (BaniDB `en.ms`), falling
+   *                 back to `en.bdb` where the SGPC text is absent.
+   *   - `pu.ss`   → Guru Granth Darpan, Prof. Sahib Singh (`pu.ss`).
+   *   - `pu.ft`   → Faridkot Teeka, Sant Giani Badan Singh Ji (`pu.ft`).
+   */
+  commentary?: {
+    /** English commentary (SGPC official rendering when available). */
+    en?: string;
+    /** Punjabi teekas, keyed by CommentarySource. */
+    pu?: {
+      /** Guru Granth Darpan (Prof. Sahib Singh). */
+      darpan?: string;
+      /** Faridkot Teeka (Sant Giani Badan Singh Ji). */
+      fareedkot?: string;
+    };
   };
   /** Writer/metadata (e.g. "Guru Nanak Dev Ji"); may be missing. */
   writer?: string;
@@ -186,9 +208,13 @@ export interface ReaderPrefs {
   // -- parallel translations (feature 18) ------------------------------------
   /** Shows both English and Punjabi translations side-by-side. */
   isParallelTranslations: boolean;
-  // -- Kanji / Guru Granth Darpan commentary (feature 21) --------------------
-  /** Displays the Punjabi commentary block (Prof. Sahib Singh) under each verse. */
+  // -- Text & commentary / teeka (feature 21) --------------------------------
+  /** Displays the verse commentary (teeka) block under each verse. */
   showKanji: boolean;
+  /** Language of the commentary block (`en` → SGPC rendition, `pu` → teeka). */
+  commentaryLang: TranslationLang;
+  /** Which genuine Punjabi teeka to use when `commentaryLang` is `pu`. */
+  commentarySource: CommentarySource;
   // -- tap-to-transliterate words (feature 19) --------------------------------
   /** Tap a Gurmukhi word to show its transliteration in a small tooltip. */
   isTapToTranslit: boolean;
