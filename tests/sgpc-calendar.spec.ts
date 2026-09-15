@@ -100,5 +100,10 @@ test.describe("Hukamnama resolution", () => {
     const live = card.getByRole("link", { name: /SGPC Website/i });
     const fallback = card.getByRole("link", { name: /Read it on the SGPC website/i });
     await expect(live.or(fallback)).toBeVisible({ timeout: 30_000 });
+
+    // When live, the layered English translation must render with its toggle.
+    if (await live.isVisible()) {
+      await expect(card.getByRole("button", { name: "Translation" })).toBeVisible();
+    }
   });
 });

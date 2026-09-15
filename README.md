@@ -4,7 +4,7 @@
 [![React](https://img.shields.io/badge/React-19-61dafb)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6)](https://www.typescriptlang.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-38bdf8)](https://tailwindcss.com/)
-[![Tests](https://img.shields.io/badge/Playwright-24_tests-brightgreen)](https://playwright.dev/)
+[![Tests](https://img.shields.io/badge/Playwright-25_tests-brightgreen)](https://playwright.dev/)
 [![License](https://img.shields.io/badge/License-MIT-amber)](./LICENSE)
 
 A focused, verse-by-verse web reader for Sri Guru Granth Sahib Ji — all 1,430 Angs
@@ -297,7 +297,7 @@ scripts/
   validate-sgpc.mjs              CI/local validator for public/data/sgpc-*.json
 tests/
   ang-navigation.spec.ts · commentary.spec.ts · learn-gurpurab.spec.ts
-  new-features.spec.ts · more-features.spec.ts · sgpc-calendar.spec.ts   Playwright suite (24 tests)
+  new-features.spec.ts · more-features.spec.ts · sgpc-calendar.spec.ts   Playwright suite (25 tests)
 .github/workflows/ci.yml        CI: typecheck + lint + validate:sgpc + Playwright
 eslint.config.mjs · next.config.ts · next-env.d.ts
 ```
@@ -325,12 +325,12 @@ npm run test        # headless Playwright run (Chromium)
 npm run test:ui     # interactive UI mode
 ```
 
-24 tests cover Ang navigation, theme persistence, genuine commentary sources
+25 tests cover Ang navigation, theme persistence, genuine commentary sources
 and switching, the Learn chart, Gurpurab Ang chips, Hindi/Spanish switching,
 pad-arth display, Nitnem pages, the daily goal tracker, visraam markers,
-Shabad of the Day, the heatmap, phonetic-search preview, the calendar
-(month grid, ←/→ keyboard nav), the SGPC year JSON, top-bar hover reveal,
-and Hukamnama resolution. CI (`.github/workflows/ci.yml`) runs typecheck,
+Shabad of the Day, the heatmap, phonetic-search preview, verse share-card
+download, the calendar (month grid, ←/→ keyboard nav), the SGPC year JSON,
+top-bar hover reveal, and Hukamnama resolution with translation layers. CI (`.github/workflows/ci.yml`) runs typecheck,
 lint, `validate:sgpc`, and the full suite on every push/PR.
 
 ## SGPC calendar releases (no-code-change years)

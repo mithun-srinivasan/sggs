@@ -3,13 +3,11 @@
  * ---------------------------------------------------------------------------
  * The Daily Hukamnama card on the Home page (feature 17).
  *
- * The user required the Hukamnama to be sourced from the **SGPC website**, so
- * this card:
- *   - calls the `getTodaysHukamnama` server action (which reads SGPC's live
- *     `hs.sgpc.net` page for the day's official audio and pairs it with
- *     BaniDB's text mirror of the same SGPC daily selection);
- *   - shows the verse text, its Ang / Raag / writer, the official SGPC audio
- *     players when available, and a prominent link back to the SGPC page.
+ * Content comes from hs.sgpc.net forever (see `getHukamnama` in lib/data.ts):
+ * Gurmukhi verses plus the official English translation, transliteration
+ * (when the BaniDB enrichment carries it), and SGPC audio players. Each
+ * verse renders as a layered block — Gurmukhi, transliteration, English —
+ * with toggle pills so readers control which layers they see.
  *
  * It fetches after mount (it lives inside a client component Home page) and
  * renders a quiet skeleton while loading.
@@ -28,6 +26,9 @@ export default function HukamnamaCard() {
   const [loading, setLoading] = useState(true);
   /** Hides the SGPC image slot when the remote file 403s/404s (deployed hotlink). */
   const [imgFailed, setImgFailed] = useState(false);
+  /** Layer toggles — default on so every reader sees all three layers at once. */
+  const [showTranslit, setShowTranslit] = useState(true);
+  const [showTranslation, setShowTranslation] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -90,6 +91,14 @@ export default function HukamnamaCard() {
     (hukamnama.sgpcImage && !imgFailed) || hukamnama.sgpcAudio || hukamnama.sgpcKathaAudio
   );
 
+  /** Whether any verse carries an English transliteration to display. */
+  const hasTranslit = hukamnama.lines.some(
+    (l) => l.transliteration || l.transliterations?.en
+  );
+
+  /** Whether any verse carries an English translation to display. */
+  const hasEnglish = hukamnama.lines.some((l) => l.translations.en);
+
   return (
     <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)]/80 backdrop-blur-md p-6 sm:p-8 shadow-[var(--shadow-subtle)]">
       {/* Card heading + date */}
@@ -104,21 +113,68 @@ export default function HukamnamaCard() {
       </div>
 
       <div className={`mt-4 grid gap-5 ${showMedia ? "sm:grid-cols-[minmax(0,1fr)_180px]" : ""}`}>
-        {/* Verse text */}
+        {/* Verse layers: Gurmukhi + transliteration + English, one block per tuk */}
         <div className="space-y-2">
           <p className="text-[11px] font-semibold text-[var(--text-faint)]">
             {hukamnama.raag ?? ""}
             {hukamnama.raag && hukamnama.writer ? " · " : ""}
             {hukamnama.writer ?? ""}
           </p>
-          <p dir="auto" lang="pa" className="font-gurmukhi text-lg leading-loose text-[var(--text)]">
-            {hukamnama.lines.slice(0, 4).map((l) => l.gurmukhi).join(" ")}
-          </p>
-          {hukamnama.lines[0]?.translations.en && (
-            <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
-              {hukamnama.lines[0].translations.en}
-            </p>
+
+          {/* Layer toggles — rendered only for layers that actually exist */}
+          {(hasTranslit || hasEnglish) && (
+            <div className="flex flex-wrap gap-2 pb-1">
+              {hasTranslit && (
+                <button
+                  onClick={() => setShowTranslit((v) => !v)}
+                  aria-pressed={showTranslit}
+                  className={`min-h-[36px] rounded-lg border px-3 text-[11px] font-semibold transition ${
+                    showTranslit
+                      ? "border-[var(--accent)] text-[var(--accent)]"
+                      : "border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]"
+                  }`}
+                >
+                  Transliteration
+                </button>
+              )}
+              {hasEnglish && (
+                <button
+                  onClick={() => setShowTranslation((v) => !v)}
+                  aria-pressed={showTranslation}
+                  className={`min-h-[36px] rounded-lg border px-3 text-[11px] font-semibold transition ${
+                    showTranslation
+                      ? "border-[var(--accent)] text-[var(--accent)]"
+                      : "border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)]"
+                  }`}
+                >
+                  Translation
+                </button>
+              )}
+            </div>
           )}
+
+          <div className="space-y-4">
+            {hukamnama.lines.map((l) => (
+              <div
+                key={l.id}
+                className="space-y-1.5 border-l-2 border-[var(--accent)]/40 pl-3"
+              >
+                <p dir="auto" lang="pa" className="font-gurmukhi text-lg leading-loose text-[var(--text)]">
+                  {l.gurmukhi}
+                </p>
+                {showTranslit && (l.transliterations?.en || l.transliteration) && (
+                  <p className="text-xs italic leading-relaxed text-[var(--text-muted)]">
+                    {l.transliterations?.en || l.transliteration}
+                  </p>
+                )}
+                {showTranslation && l.translations.en && (
+                  <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
+                    {l.translations.en}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
           {/* Official SGPC audio — the actual daily media hs.sgpc.net publishes */}
           {(hukamnama.sgpcAudio || hukamnama.sgpcKathaAudio) && (
             <div className="space-y-2 pt-2">

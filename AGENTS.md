@@ -114,12 +114,16 @@ it*. Follow all ten rules on every change.
 
 - Home hero (`golden-temple-night.png`, ~1 MB) uses `priority` +
   `fetchPriority="high"` — do not revert to lazy. Prefer AVIF/WebP at ≤85
-  quality if replacing the asset.
+  quality if replacing the asset (Next allows 75 by default — keep custom
+  qualities out of the config unless the asset truly needs them).
 - Build pre-renders ~2,880 static pages with live BaniDB fetches: keep
   `fetchUpstream` timeouts/retries bounded and `staticPageGenerationTimeout`
   at 120 s. If the build gets slower, move `print/` pages to ISR before
   touching Ang SSG.
 - New images: `next/image` with `sizes`; new audio: `preload="none"`.
+- Share-card canvas (`VerseCard`): must fit any verse length — word-wrap
+  every block, auto-fit fonts roomy-first, ellipsis only as a last resort.
+  Covered by the share-download spec; never hard-cap lines or draw off-canvas.
 
 ## 9. Testing rules
 

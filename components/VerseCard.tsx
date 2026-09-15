@@ -12,7 +12,9 @@
  *   6.  Memorisation mode — Gurmukhi is blurred; "Tap to reveal" clears it.
  *  12.  Highlights — one of four colours, toggled from the footer.
  *  10.  Verse notes — an expandable textarea saved via `NotesProvider`.
- *  14.  Share — renders the verse to a canvas and downloads a share card PNG.
+ *  14.  Share — renders the verse to a 1080×1350 canvas and downloads a
+ *       share card PNG; long verses auto-fit (wrapped, shrinking fonts,
+ *       ellipsis last resort) so text never clips off-canvas.
  *  17.  (Hukamnama uses this same component on the Home page.)
  *  18.  Parallel translations — English + Punjabi side-by-side.
  *  19.  Tap-to-transliterate — tap a Gurmukhi word to see its Romanisation.
@@ -241,84 +243,190 @@ export default function VerseCard({
 
   // -- Share as card image (feature 14) -------------------------------------------------
 
-  /** Renders the verse onto a 1080×1350 canvas and triggers a PNG download. */
+  // -- Share as card image (feature 14) -------------------------------------------------
+
+  /**
+   * Renders the verse onto a 1080×1350 (4:5 portrait) canvas and triggers a
+   * PNG download.  Long verses always fit: every block is word-wrapped, the
+   * layout tries roomy font sizes first and shrinks step-wise until the whole
+   * stack fits above the footer, and only as a last resort truncates the
+   * translation with an ellipsis.  Nothing is ever clipped or drawn
+   * off-canvas.
+   */
   const handleShare = () => {
     try {
+      const W = 1080;
+      const H = 1350;
+      const PAD_X = 110;
+      const usable = W - PAD_X * 2;
       const canvas = document.createElement("canvas");
-      canvas.width = 1080;
-      canvas.height = 1350;
+      canvas.width = W;
+      canvas.height = H;
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
 
-      // Dark, quiet backdrop.
-      ctx.fillStyle = "#0B0C12";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      // Saffron Khanda-inspired divider.
-      ctx.fillStyle = "#F59E0B";
-      ctx.fillRect(120, 150, canvas.width - 240, 4);
-
-      // Gurmukhi — two wrapped lines, centred, generous size.
-      ctx.fillStyle = "#FAFAFA";
-      ctx.font = `600 42px ${SHARE_FONT_STACK}`;
-      ctx.textAlign = "center";
-      const gurmukhiString = line.gurmukhi;
-      const words = gurmukhiString.split(/\s+/);
-      const usable = canvas.width - 240;
-      const lines: string[] = [];
-      let current = "";
-      for (const w of words) {
-        const test = current ? `${current} ${w}` : w;
-        if (ctx.measureText(test).width <= usable) {
-          current = test;
-        } else {
-          if (current) lines.push(current);
-          current = w;
-        }
-      }
-      if (current) lines.push(current);
-
-      let y = 320;
-      for (const l of lines.slice(0, 3)) {
-        ctx.fillText(l, canvas.width / 2, y);
-        y += 110;
-      }
-
-      // Transliteration.
-      ctx.fillStyle = "#94A3B8";
-      ctx.textAlign = "center";
-      ctx.font = `400 32px "Inter", sans-serif`;
-      ctx.fillText(translit || line.transliteration, canvas.width / 2, y + 60);
-
-      // Translation.
-      const translation = primaryTranslation || punjabiTranslation;
-      if (translation) {
-        ctx.fillStyle = "#E2E8F0";
-        ctx.font = `400 30px "Inter", sans-serif`;
-        const tlWords = translation.split(/\s+/);
-        let tlCurrent = "";
-        const tlLines: string[] = [];
-        for (const w of tlWords) {
-          const test = tlCurrent ? `${tlCurrent} ${w}` : w;
+      /** Word-wraps text to the card width for the given font. */
+      const wrap = (text: string, font: string): string[] => {
+        ctx.font = font;
+        const out: string[] = [];
+        let current = "";
+        for (const w of text.split(/\s+/).filter(Boolean)) {
+          const test = current ? `${current} ${w}` : w;
           if (ctx.measureText(test).width <= usable) {
-            tlCurrent = test;
+            current = test;
           } else {
-            if (tlCurrent) tlLines.push(tlCurrent);
-            tlCurrent = w;
+            if (current) out.push(current);
+            current = w;
           }
         }
-        if (tlCurrent) tlLines.push(tlCurrent);
-        let ty = y + 160;
-        for (const l of tlLines.slice(0, 3)) {
-          ctx.fillText(l, canvas.width / 2, ty);
-          ty += 52;
+        if (current) out.push(current);
+        return out;
+      };
+
+      /** Truncates wrapped lines to `max` rows, ellipsising the last one. */
+      const fitLines = (wrapped: string[], font: string, max: number): string[] => {
+        if (wrapped.length <= max) return wrapped;
+        const kept = wrapped.slice(0, max);
+        ctx.font = font;
+        let last = kept[max - 1];
+        while (last.length > 1 && ctx.measureText(`${last}…`).width > usable) {
+          last = last.slice(0, -1).trimEnd();
+        }
+        kept[max - 1] = `${last}…`;
+        return kept;
+      };
+
+      const translation = primaryTranslation || punjabiTranslation || "";
+      const trText = translit || line.transliteration || "";
+
+      // Roomy-first font configs; the first one whose stack fits wins.
+      const configs = [
+        { g: 56, tr: 32, tl: 30 },
+        { g: 48, tr: 28, tl: 26 },
+        { g: 42, tr: 25, tl: 23 },
+        { g: 36, tr: 22, tl: 20 },
+      ];
+      const gFont = (s: number) => `600 ${s}px ${SHARE_FONT_STACK}`;
+      const trFont = (s: number) => `italic 400 ${s}px Inter, sans-serif`;
+      const tlFont = (s: number) => `400 ${s}px Inter, sans-serif`;
+
+      const CONTENT_TOP = 400;
+      const CONTENT_BOTTOM = H - 200;
+      const GAP = 44;
+
+      let picked = configs[configs.length - 1];
+      let gLines: string[] = [];
+      let trLines: string[] = [];
+      let tlLines: string[] = [];
+      for (const cfg of configs) {
+        const g = wrap(line.gurmukhi, gFont(cfg.g));
+        const tr = trText ? wrap(trText, trFont(cfg.tr)) : [];
+        const tl = translation ? wrap(translation, tlFont(cfg.tl)) : [];
+        const need =
+          g.length * cfg.g * 1.65 +
+          (tr.length ? GAP * 0.7 + tr.length * cfg.tr * 1.5 : 0) +
+          (tl.length ? GAP + tl.length * cfg.tl * 1.5 : 0);
+        gLines = g;
+        trLines = tr;
+        tlLines = tl;
+        picked = cfg;
+        if (need <= CONTENT_BOTTOM - CONTENT_TOP) break;
+      }
+
+      // Last resort: cap the stack so it ends above the footer.
+      const maxGLines = Math.max(
+        2,
+        Math.floor((CONTENT_BOTTOM - CONTENT_TOP) / (picked.g * 1.65))
+      );
+      gLines = fitLines(gLines, gFont(picked.g), Math.min(gLines.length, maxGLines));
+      let used =
+        CONTENT_TOP + gLines.length * picked.g * 1.65;
+      const trBudget =
+        trLines.length && used + GAP * 0.7 < CONTENT_BOTTOM
+          ? Math.max(
+              1,
+              Math.floor((CONTENT_BOTTOM - used - GAP * 0.7) / (picked.tr * 1.5))
+            )
+          : 0;
+      trLines = trBudget ? fitLines(trLines, trFont(picked.tr), Math.min(trLines.length, trBudget)) : [];
+      used += trLines.length ? GAP * 0.7 + trLines.length * picked.tr * 1.5 : 0;
+      const tlBudget =
+        tlLines.length && used + GAP < CONTENT_BOTTOM
+          ? Math.max(1, Math.floor((CONTENT_BOTTOM - used - GAP) / (picked.tl * 1.5)))
+          : 0;
+      tlLines = tlBudget ? fitLines(tlLines, tlFont(picked.tl), Math.min(tlLines.length, tlBudget)) : [];
+
+      const totalH =
+        gLines.length * picked.g * 1.65 +
+        (trLines.length ? GAP * 0.7 + trLines.length * picked.tr * 1.5 : 0) +
+        (tlLines.length ? GAP + tlLines.length * picked.tl * 1.5 : 0);
+      // Vertically centre the stack between the header mark and the footer.
+      let y = CONTENT_TOP + Math.max(0, (CONTENT_BOTTOM - CONTENT_TOP - totalH) / 2);
+
+      // -- Backdrop: deep base + warm radial glow + hairline frame -------------
+      ctx.fillStyle = "#0B0C12";
+      ctx.fillRect(0, 0, W, H);
+      const glow = ctx.createRadialGradient(W / 2, H * 0.32, 60, W / 2, H * 0.32, 720);
+      glow.addColorStop(0, "rgba(245, 158, 11, 0.12)");
+      glow.addColorStop(1, "rgba(245, 158, 11, 0)");
+      ctx.fillStyle = glow;
+      ctx.fillRect(0, 0, W, H);
+      ctx.strokeStyle = "rgba(245, 158, 11, 0.35)";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(44, 44, W - 88, H - 88);
+
+      // -- Header mark ----------------------------------------------------------
+      ctx.textAlign = "center";
+      ctx.textBaseline = "alphabetic";
+      ctx.fillStyle = "#F59E0B";
+      ctx.font = `600 92px ${SHARE_FONT_STACK}`;
+      ctx.fillText("ੴ", W / 2, 208);
+      ctx.fillRect(W / 2 - 80, 258, 160, 4);
+
+      // -- Body: top-baseline stacking so wrapped rows never overlap -----------
+      ctx.textBaseline = "top";
+
+      // -- Gurmukhi ---------------------------------------------------------------
+      ctx.fillStyle = "#FAFAFA";
+      ctx.font = gFont(picked.g);
+      for (const l of gLines) {
+        ctx.fillText(l, W / 2, y);
+        y += picked.g * 1.65;
+      }
+
+      // -- Transliteration ----------------------------------------------------------
+      if (trLines.length) {
+        y += GAP * 0.7;
+        ctx.fillStyle = "#94A3B8";
+        ctx.font = trFont(picked.tr);
+        for (const l of trLines) {
+          ctx.fillText(l, W / 2, y);
+          y += picked.tr * 1.5;
         }
       }
 
-      // Footer attribution.
+      // -- Translation ----------------------------------------------------------------
+      if (tlLines.length) {
+        y += GAP;
+        ctx.fillStyle = "#E2E8F0";
+        ctx.font = tlFont(picked.tl);
+        for (const l of tlLines) {
+          ctx.fillText(l, W / 2, y);
+          y += picked.tl * 1.5;
+        }
+      }
+
+      // -- Footer attribution -----------------------------------------------------------
+      ctx.textBaseline = "alphabetic";
+      ctx.fillStyle = "#F59E0B";
+      ctx.fillRect(W / 2 - 60, H - 168, 120, 3);
       ctx.fillStyle = "#64748B";
-      ctx.font = `400 26px "Inter", sans-serif`;
-      ctx.fillText(baniName ?? `Sri Guru Granth Sahib Ji · Ang ${angNumber}`, canvas.width / 2, 1240);
+      ctx.font = `400 26px Inter, sans-serif`;
+      ctx.fillText(
+        baniName ?? `Sri Guru Granth Sahib Ji · Ang ${angNumber}`,
+        W / 2,
+        H - 108
+      );
 
       // Download.
       const url = canvas.toDataURL("image/png");

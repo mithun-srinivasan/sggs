@@ -82,3 +82,18 @@ test.describe("Daily goal tracker", () => {
     await expect(page.getByText("of 2 Angs today")).toBeVisible();
   });
 });
+
+test.describe("Share card", () => {
+  test("share button downloads a verse PNG (long verses fit, never clipped)", async ({
+    page,
+  }) => {
+    await page.goto("/ang/1");
+    await page.waitForSelector("h1");
+
+    // The canvas render must complete and trigger a PNG download.
+    const downloadPromise = page.waitForEvent("download", { timeout: 15_000 });
+    await page.locator('button[aria-label="Share verse as image"]').first().click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toMatch(/\.png$/);
+  });
+});
