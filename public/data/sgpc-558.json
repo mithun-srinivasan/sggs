@@ -1,0 +1,39 @@
+{
+  "nanakshahiYear": 558,
+  "gregorianSpan": "14 Mar 2026 – 13 Mar 2027",
+  "source": "SGPC via SikhNet / Golden Temple Amritsar (Samvat 558)",
+  "months": [
+    { "name": "Chet", "gurmukhi": "ਚੇਤ", "startMonth": 3, "startDay": 14, "days": 31 },
+    { "name": "Vaisakh", "gurmukhi": "ਵੈਸਾਖ", "startMonth": 4, "startDay": 14, "days": 31 },
+    { "name": "Jeth", "gurmukhi": "ਜੇਠ", "startMonth": 5, "startDay": 15, "days": 31 },
+    { "name": "Harh", "gurmukhi": "ਹਾੜ", "startMonth": 6, "startDay": 15, "days": 31 },
+    { "name": "Sawan", "gurmukhi": "ਸਾਵਣ", "startMonth": 7, "startDay": 16, "days": 32 },
+    { "name": "Bhadon", "gurmukhi": "ਭਾਦੋਂ", "startMonth": 8, "startDay": 17, "days": 31 },
+    { "name": "Assu", "gurmukhi": "ਅੱਸੂ", "startMonth": 9, "startDay": 17, "days": 30 },
+    { "name": "Kattak", "gurmukhi": "ਕੱਤਕ", "startMonth": 10, "startDay": 17, "days": 30 },
+    { "name": "Magghar", "gurmukhi": "ਮੱਘਰ", "startMonth": 11, "startDay": 16, "days": 30 },
+    { "name": "Poh", "gurmukhi": "ਪੋਹ", "startMonth": 12, "startDay": 16, "days": 29 },
+    { "name": "Magh", "gurmukhi": "ਮਾਘ", "startMonth": 1, "startDay": 14, "days": 30 },
+    { "name": "Phaggan", "gurmukhi": "ਫੱਗਣ", "startMonth": 2, "startDay": 13, "days": 30 }
+  ],
+  "gurpurabs": [
+    { "name": "Parkash Gurpurab — Sri Guru Tegh Bahadur Ji", "month": 4, "day": 7, "ang": 631, "description": "Birth of the Ninth Guru (25 Chet 558) — Sorath Bani of Guru Tegh Bahadur Ji." },
+    { "name": "Parkash Gurpurab — Sri Guru Arjan Dev Ji", "month": 4, "day": 9, "ang": 262, "description": "Birth of the Fifth Guru (27 Chet 558) — Sukhmani Sahib, his own Bani." },
+    { "name": "Khalsa Sajna — Vaisakhi", "month": 4, "day": 14, "ang": 917, "description": "The Khalsa Panth established in 1699 (1 Vaisakh 558) — Anand Sahib, recited at every Amrit Sanchar." },
+    { "name": "Parkash Gurpurab — Sri Guru Angad Dev Ji", "month": 4, "day": 18, "ang": 139, "description": "Birth of the Second Guru (5 Vaisakh 558) — Bani of Guru Angad Dev Ji." },
+    { "name": "Parkash Gurpurab — Sri Guru Amar Das Ji", "month": 4, "day": 30, "ang": 917, "description": "Birth of the Third Guru (17 Vaisakh 558) — Anand Sahib, his own composition." },
+    { "name": "Shaheedi Diwas — Sri Guru Arjan Dev Ji", "month": 6, "day": 18, "ang": 262, "description": "Martyrdom of the Fifth Guru in Lahore (4 Harh 558) — Sukhmani Sahib, his own Bani." },
+    { "name": "Parkash Gurpurab — Sri Guru Hargobind Sahib Ji", "month": 6, "day": 30, "ang": 14, "description": "Birth of the Sixth Guru (16 Harh 558) — related reading in Sri Raag." },
+    { "name": "Parkash Gurpurab — Sri Guru Harkrishan Sahib Ji", "month": 8, "day": 7, "ang": 262, "description": "Birth of the Eighth Guru (23 Sawan 558) — Sukhmani Sahib, the prayer of peace." },
+    { "name": "Pehla Parkash — Sri Guru Granth Sahib Ji", "month": 9, "day": 12, "ang": 1, "description": "First Parkash at Sri Harmandir Sahib (27 Bhadon 558) — opens with Japji Sahib." },
+    { "name": "Joti Jot — Sri Guru Nanak Dev Ji", "month": 10, "day": 5, "ang": 1, "description": "Passing (Joti Jot) of the First Guru (19 Assu 558) — Japji Sahib, his own Bani." },
+    { "name": "Parkash Gurpurab — Sri Guru Ram Das Ji", "month": 10, "day": 27, "ang": 773, "description": "Birth of the Fourth Guru, founder of Amritsar (11 Kattak 558) — Lavan (Soohi), his own composition." },
+    { "name": "Bandi Chhor Divas", "month": 11, "day": 8, "ang": 14, "description": "Release of the Sixth Guru and 52 princes from Gwalior Fort (23 Kattak 558, lunar) — related reading in Sri Raag." },
+    { "name": "Gurgaddi — Sri Guru Granth Sahib Ji", "month": 11, "day": 11, "ang": 1, "description": "Gurgaddi at Nanded (26 Kattak 558) — opens with Japji Sahib." },
+    { "name": "Parkash Gurpurab — Sri Guru Nanak Dev Ji", "month": 11, "day": 24, "ang": 1, "description": "Birth of the First Guru (9 Magghar 558, lunar) — opens with Japji Sahib, his own Bani." },
+    { "name": "Shaheedi Diwas — Sri Guru Tegh Bahadur Ji", "month": 12, "day": 14, "ang": 631, "description": "Martyrdom of the Ninth Guru in Delhi (29 Magghar 558) — Sorath Bani of Guru Tegh Bahadur Ji." },
+    { "name": "Shaheedi — Sahibzade & Mata Gujri Ji", "month": 12, "day": 28, "ang": 10, "description": "Martyrdom of the younger Sahibzade and Mata Gujri Ji (13 Poh 558) — So Purakh from evening Rehras, part of the daily Khalsa Nitnem." },
+    { "name": "Parkash Gurpurab — Sri Guru Gobind Singh Ji", "month": 1, "day": 15, "ang": 10, "description": "Birth of the Tenth Guru, founder of the Khalsa (2 Magh 558) — So Purakh from evening Rehras, part of the daily Khalsa Nitnem." },
+    { "name": "Parkash Gurpurab — Sri Guru Har Rai Sahib Ji", "month": 1, "day": 31, "ang": 217, "description": "Birth of the Seventh Guru (18 Magh 558) — related reading in Raag Gauri." }
+  ]
+}

@@ -273,8 +273,9 @@ export default function HomePage() {
           src="/golden-temple-night.png"
           alt="Sri Harmandir Sahib (Golden Temple) at night"
           fill
-          preload
-          quality={90}
+          priority
+          fetchPriority="high"
+          quality={85}
           sizes="100vw"
           className="object-cover object-center pointer-events-none"
         />

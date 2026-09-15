@@ -183,6 +183,10 @@ export interface HukamnamaInfo {
   lines: VerseLine[];
   /** URL of SGPC's official scanned Hukamnama image (may be absent). */
   sgpcImage?: string;
+  /** URL of SGPC's official Hukamnama audio (hs.sgpc.net, may be absent). */
+  sgpcAudio?: string;
+  /** URL of SGPC's official Katha audio (hs.sgpc.net, may be absent). */
+  sgpcKathaAudio?: string;
   /** URL of the SGPC official daily Hukamnama page. */
   sgpcPage: string;
   /** Human-readable source note to show to the user. */

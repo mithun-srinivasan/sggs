@@ -3,18 +3,20 @@
  * ---------------------------------------------------------------------------
  * The Home-page "Upcoming Gurpurabs" card (feature 20).
  *
- * Computes the next holy days within a 60-day window using the static
- * Nanakshahi table in `lib/gurpurabs.ts`.  Because the calculation depends on
- * "today", it runs inside a `useEffect` to avoid a server/client hydration
- * mismatch, showing a quiet skeleton until the client resolves the dates.
+ * Year-aware: resolves the active SGPC calendar via `useSgpcCalendar`
+ * (bundled 558 instantly, then `/data/sgpc-<year>.json` + cache).  When SGPC
+ * publishes a new year file, the card adopts it with no code change.
+ * Because the calculation depends on "today", it runs inside a `useEffect`
+ * to avoid a server/client hydration mismatch.
  */
 
 "use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { CalendarDays, ArrowRight } from "lucide-react";
+import { CalendarDays, ArrowRight, RefreshCw } from "lucide-react";
 import { getUpcomingGurpurabs } from "@/lib/gurpurabs";
+import { useSgpcCalendar } from "@/lib/sgpc";
 import type { Gurpurab } from "@/lib/types";
 
 interface Upcoming {
@@ -24,12 +26,13 @@ interface Upcoming {
 }
 
 export default function GurpurabCalendar() {
+  const { year, gurpurabs, source, refresh } = useSgpcCalendar();
   const [upcoming, setUpcoming] = useState<Upcoming[] | null>(null);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- compute next Gurpurabs after mount (matches date on client only)
-    setUpcoming(getUpcomingGurpurabs(new Date(), 60));
-  }, []);
+    setUpcoming(getUpcomingGurpurabs(new Date(), 60, gurpurabs));
+  }, [gurpurabs]);
 
   if (upcoming === null) {
     return (
@@ -41,17 +44,38 @@ export default function GurpurabCalendar() {
 
   return (
     <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)]/80 backdrop-blur-md p-6 sm:p-8 shadow-[var(--shadow-subtle)]">
-      <div className="flex items-center justify-between gap-2 border-b border-[var(--border-subtle)] pb-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border-subtle)] pb-3">
         <h2 className="flex items-center gap-2 text-base font-bold text-[var(--text)]">
           <CalendarDays size={18} className="text-[var(--accent)]" />
           <span>Upcoming Gurpurabs</span>
+          <span
+            title={source === "bundled" ? "Bundled SGPC data (checking for update…)" : "SGPC data up to date"}
+            className="rounded-full border border-[var(--border)] px-2 py-0.5 text-[10px] font-bold text-[var(--text-muted)]"
+          >
+            SGPC {year}
+          </span>
         </h2>
-        <Link
-          href="/calendar"
-          className="text-[11px] font-semibold text-[var(--accent)] hover:underline"
-        >
-          Full calendar
-        </Link>
+        <div className="flex items-center gap-2">
+          {source === "bundled" && (
+            <button
+              onClick={refresh}
+              aria-label="Check for calendar update"
+              title="Check for new SGPC year"
+              className="flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--border)] text-[var(--text-muted)] transition hover:text-[var(--text)] hover:border-[var(--accent)]"
+            >
+              <RefreshCw size={14} />
+            </button>
+          )}
+          <Link
+            href="/calendar"
+            aria-label="Full calendar"
+            className="flex min-h-[44px] items-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:opacity-90 hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <CalendarDays size={15} />
+            <span>Full calendar</span>
+            <ArrowRight size={14} />
+          </Link>
+        </div>
       </div>
 
       {upcoming.length === 0 ? (

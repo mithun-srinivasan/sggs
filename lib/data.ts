@@ -68,8 +68,10 @@ async function fetchUpstream(url: string, init?: RequestInit): Promise<Response>
   throw lastError instanceof Error ? lastError : new Error(`Upstream fetch failed: ${url}`);
 }
 
-/** URL of the official SGPC daily-Hukamnama WordPress page (Amritsar). */
-const SGPC_HUKAMNAMA_URL = "https://www.sgpc.net/hukamnama/";
+/** URL of the official SGPC daily-Hukamnama page (hs.sgpc.net serves the
+ *  day's text + audio; the old www.sgpc.net/hukamnama/ page is a static
+ *  2022 attachment with no daily content). */
+const SGPC_HUKAMNAMA_URL = "https://hs.sgpc.net/";
 
 // -------------------------------------------------------------------------
 // Raw BaniDB response shapes — only the fields this app consumes.
@@ -420,51 +422,26 @@ export function clampAng(n: number): number {
 }
 
 /**
- * Fetches the Daily Hukamnama.
+ * Fetches the Daily Hukamnama — sourced from hs.sgpc.net, forever.
  *
- * The user explicitly required the Hukamnama to come from the SGPC website.
- * SGPC's official daily page (`https://www.sgpc.net/hukamnama/`) publishes the
- * day's Hukamnama as a scanned image only — it exposes no JSON/text API.  This
- * loader therefore:
+ * SGPC's live daily page (`https://hs.sgpc.net/`) publishes the day's
+ * Hukamnama as embedded JSON (`#hukamnamaPdfData`: date, Ang, Gurmukhi,
+ * Punjabi vyakhya, English) plus audio (`hukamnamaaudio/…mp3`, Katha).
+ * This loader parses that page as the single source of truth, so the card
+ * never depends on a third-party mirror for its content:
  *
- *   1. Scrapes the SGPC page for its official Hukamnama image, which is shown
- *      verbatim with a link back to SGPC;
- *   2. Pairs it with the machine-readable text from BaniDB's `/hukamnamas`
- *      endpoint, which mirrors the exact daily selection made at Sri Darbar
- *      Sahib, Amritsar (BaniDB is SGPC-compatible, SGPC-ratified data).
+ *   1. hs.sgpc.net → date, Ang, Gurmukhi verses, Punjabi + English, audio;
+ *   2. BaniDB enrichment (optional, best-effort): when BaniDB's
+ *      `/hukamnamas` mirror carries the *same* Ang, its richer verse objects
+ *      (transliteration etc.) replace the plain parsed lines — but a BaniDB
+ *      outage never breaks the card because the SGPC-parsed lines stand alone.
  *
  * The result is cached for 6 hours (`revalidate: 21600`) because the
  * Hukamnama changes at Amrit Vela each morning, never more often.
  *
- * Between midnight IST and Amrit Vela the new day's Hukamnama is not
- * published yet, so the previous day's (still in effect) is served instead,
- * labelled with its own date.
- *
- * @returns the combined Hukamnama info, or `null` on any fetch failure.
+ * @returns the SGPC Hukamnama, or `null` only when SGPC *and* BaniDB both fail.
  */
 export async function getHukamnama(): Promise<HukamnamaInfo | null> {
-  const now = new Date();
-
-  // Compute IST date so the correct Hukamnama is fetched during the ~2.5 hour
-  // UTC gap after Amrit Vela (3 AM IST ≈ 9:30 PM UTC previous day).
-  const istParts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Asia/Kolkata",
-    year: "numeric",
-    month: "numeric",
-    day: "numeric",
-  }).formatToParts(now);
-  const get = (type: string) => Number(istParts.find((p) => p.type === type)?.value ?? 0);
-  const year = get("year");
-  const month = get("month");
-  const day = get("day");
-
-  /**
-   * Candidate IST dates, newest first.  Between midnight and Amrit Vela the
-   * current day's Hukamnama is not published yet (BaniDB answers 404), so we
-   * fall back to the previous day's — still the Hukamnama in effect.
-   */
-  const candidates = [new Date(year, month - 1, day), new Date(year, month - 1, day - 1)];
-
   /** Human-readable label (e.g. "Monday, 14 September 2026") for a date. */
   const formatDateLabel = (d: Date) =>
     d.toLocaleDateString("en-GB", {
@@ -474,76 +451,260 @@ export async function getHukamnama(): Promise<HukamnamaInfo | null> {
       year: "numeric",
     });
 
-  /** Scrapes the SGPC page for the day's official Hukamnama scan image. */
-  const fetchSgpcScan = async (): Promise<string | undefined> => {
+  /** "FOURTH MEHL" / "ਮਹਲਾ ੪" → writer attribution. */
+  const writerFromMehl = (englishHeading: string, gurmukhiHeading: string): string | undefined => {
+    const upper = englishHeading.toUpperCase();
+    const mehlWord =
+      (["FIRST", "SECOND", "THIRD", "FOURTH", "FIFTH", "SIXTH", "SEVENTH", "EIGHTH", "NINTH", "TENTH"] as const).find(
+        (w) => upper.includes(`${w} MEHL`)
+      ) ?? (() => {
+        const m = gurmukhiHeading.match(/ਮਹਲਾ\s*([੧੨੩੪੫੬੭੮੯੧੦\d]+)/);
+        if (!m) return undefined;
+        const digitMap: Record<string, string> = {
+          "੧": "FIRST", "੨": "SECOND", "੩": "THIRD", "੪": "FOURTH", "੫": "FIFTH",
+          "੬": "SIXTH", "੭": "SEVENTH", "੮": "EIGHTH", "੯": "NINTH", "੧੦": "TENTH",
+          "1": "FIRST", "2": "SECOND", "3": "THIRD", "4": "FOURTH", "5": "FIFTH",
+          "6": "SIXTH", "7": "SEVENTH", "8": "EIGHTH", "9": "NINTH", "10": "TENTH",
+        };
+        return digitMap[m[1]];
+      })();
+    switch (mehlWord) {
+      case "FIRST": return "Guru Nanak Dev Ji";
+      case "SECOND": return "Guru Angad Dev Ji";
+      case "THIRD": return "Guru Amar Das Ji";
+      case "FOURTH": return "Guru Ram Das Ji";
+      case "FIFTH": return "Guru Arjan Dev Ji";
+      case "NINTH": return "Guru Tegh Bahadur Ji";
+      default: return undefined;
+    }
+  };
+
+  /** "SOOHEE, FOURTH MEHL:" → "Soohee". */
+  const raagFromHeading = (englishHeading: string): string | undefined => {
+    const first = englishHeading.split(",")[0]?.replace(/[:\s]+$/, "").trim();
+    if (!first) return undefined;
+    const lower = first.toLowerCase();
+    return lower.charAt(0).toUpperCase() + lower.slice(1);
+  };
+
+  /** Shape of SGPC's embedded `#hukamnamaPdfData` JSON. */
+  interface HsSgpcJson {
+    date?: string;
+    ang?: string;
+    gheading1?: string;
+    ghukamnama?: string;
+    ghukamnamadesc?: string;
+    eheading1?: string;
+    ehukamnamadesc?: string;
+  }
+
+  /** Fetches + parses the live hs.sgpc.net page (source of truth). */
+  const fetchHsSgpc = async (): Promise<{ info: HukamnamaInfo; iso: string } | null> => {
     try {
-      const res = await fetchUpstream(SGPC_HUKAMNAMA_URL, { next: { revalidate: 21600 } });
-      if (!res.ok) return undefined;
+      // Cloudflare in front of hs.sgpc.net challenges default Node fetches —
+      // send browser-like headers so Vercel production isn't served a
+      // challenge page (which is why media silently vanished when deployed).
+      const res = await fetchUpstream(SGPC_HUKAMNAMA_URL, {
+        next: { revalidate: 21600 },
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36",
+          Accept: "text/html,application/xhtml+xml",
+          "Accept-Language": "en-US,en;q=0.9,pa;q=0.8",
+        },
+      });
+      if (!res.ok) return null;
       const html = await res.text();
-      const raw =
-        html.match(/<img[^>]+src="([^"]*hukamnama[^"]*\.(?:jpe?g|png|webp))"[^>]*>/i) ??
-        html.match(/<img[^>]+src="([^"]*(?:storage\/\d{4}\/\d{2}\/)[^"]+\.(?:jpe?g|png|webp))"[^>]*>/i);
-      const src = raw?.[1];
-      if (!src) return undefined;
-      const normalized = src.replace(/&amp;/g, "&").replace(/^\/\//, "https://");
-      return /^https?:/.test(normalized)
-        ? normalized
-        : `https://www.sgpc.net${normalized}`;
+      if (html.includes("__CF$cv$params") && !html.includes("hukamnama-card")) {
+        return null; // Cloudflare challenge — caller falls back to BaniDB text
+      }
+
+      const audioMatch = html.match(
+        /src="(https:\/\/hs\.sgpc\.net\/hukamnamaaudio\/[^"]+\.mp3[^"]*)"/i
+      );
+      const kathaMatch = html.match(
+        /src="(https:\/\/hs\.sgpc\.net\/kathaaudio\/[^"]+\.mp3[^"]*)"/i
+      );
+
+      const jsonRaw = html.match(
+        /<script[^>]+id="hukamnamaPdfData"[^>]*>([\s\S]*?)<\/script>/i
+      )?.[1]?.trim();
+      if (!jsonRaw) return null;
+      let json: HsSgpcJson;
+      try {
+        json = JSON.parse(jsonRaw);
+      } catch {
+        return null;
+      }
+      const gurmukhiFull = (json.ghukamnama ?? "").trim();
+      if (!gurmukhiFull) return null;
+
+      const angParsed = parseInt(String(json.ang ?? ""), 10);
+      const ang = Number.isNaN(angParsed) ? MIN_ANG : clampAng(angParsed);
+
+      const dateParts = (json.date ?? "").split("-").map(Number);
+      const dateObj =
+        dateParts.length === 3 && dateParts.every((n) => Number.isFinite(n) && n > 0)
+          ? new Date(dateParts[0], dateParts[1] - 1, dateParts[2])
+          : new Date();
+
+      const gheading = (json.gheading1 ?? "").trim();
+      const eheading = (json.eheading1 ?? "").trim();
+      const englishFull = (json.ehukamnamadesc ?? "").trim();
+      const punjabiFull = (json.ghukamnamadesc ?? "").trim();
+
+      // Split Gurmukhi + English on verse delimiters so each card line is a
+      // real tuk; fall back to one block when the counts don't align.
+      const gChunks = gurmukhiFull
+        .split("॥")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const eChunks = englishFull
+        .split("||")
+        .map((s) => s.replace(/\s+/g, " ").trim())
+        .filter(Boolean);
+      const alignEnglish = eChunks.length === gChunks.length;
+
+      const lines: VerseLine[] = gChunks.map((chunk, i) => ({
+        id: `hs-${json.date ?? "daily"}-${i}`,
+        gurmukhi: `${chunk} ॥`,
+        transliteration: "",
+        transliterations: { en: "", hi: "", ur: "", ipa: "" },
+        translations: {
+          en: alignEnglish ? eChunks[i] : i === 0 ? englishFull || undefined : undefined,
+          pu: i === 0 ? punjabiFull || undefined : undefined,
+        },
+        pageNo: ang,
+        lineNo: i + 1,
+      }));
+
+      const fullLines: VerseLine[] =
+        lines.length > 0
+          ? lines
+          : [
+              {
+                id: `hs-${json.date ?? "daily"}-0`,
+                gurmukhi: gurmukhiFull,
+                transliteration: "",
+                transliterations: { en: "", hi: "", ur: "", ipa: "" },
+                translations: {
+                  en: englishFull || undefined,
+                  pu: punjabiFull || undefined,
+                },
+                pageNo: ang,
+                lineNo: 1,
+              },
+            ];
+
+      // Raag heading (e.g. "ਸੂਹੀ ਮਹਲਾ ੪ ॥") prefixed as context on line 1.
+      if (gheading && fullLines.length > 0) {
+        fullLines[0] = { ...fullLines[0], gurmukhi: `${gheading} ${fullLines[0].gurmukhi}` };
+      }
+
+      const iso = /^\d{4}-\d{2}-\d{2}$/.test(json.date ?? "") ? (json.date as string) : "";
+      return {
+        info: {
+          dateLabel: formatDateLabel(dateObj),
+          ang,
+          raag: raagFromHeading(eheading),
+          writer: writerFromMehl(eheading, gheading),
+          lines: fullLines,
+          sgpcImage: undefined, // hs.sgpc.net publishes no daily image — audio is the media
+          sgpcAudio: audioMatch?.[1],
+          sgpcKathaAudio: kathaMatch?.[1],
+          sgpcPage: SGPC_HUKAMNAMA_URL,
+          sourceNote: "Daily Hukamnama — Sri Darbar Sahib, Amritsar (SGPC hs.sgpc.net)",
+        },
+        iso,
+      };
     } catch {
-      // SGPC being unreachable must never crash the Home page — ignore failure.
-      return undefined;
+      return null;
     }
   };
 
   /**
-   * Fetches BaniDB's text mirror of the same SGPC daily selection.
-   * Tries each candidate date newest-first so the pre-dawn gap (today's
-   * Hukamnama not yet published) transparently serves yesterday's instead.
+   * Best-effort BaniDB enrichment: when BaniDB's mirror carries the *same*
+   * Ang SGPC just published, swap in its richer verse objects
+   * (transliteration etc.) while keeping SGPC's date/audio/attribution.
+   * Never throws — SGPC-parsed lines stand alone.
    */
-  const fetchBaniText = async (): Promise<HukamnamaInfo | null> => {
+  const enrichFromBaniDb = async (base: HukamnamaInfo, isoDate: string): Promise<HukamnamaInfo> => {
+    try {
+      const [y, m, d] = isoDate.split("-").map(Number);
+      if (![y, m, d].every((n) => Number.isFinite(n))) return base;
+      const url = `${BANIDB_BASE}/hukamnamas/${y}/${m}/${d}`;
+      const res = await fetchUpstream(url, { next: { revalidate: 21600 } });
+      if (!res.ok) return base;
+      const data: BaniDbHukamnamaResponse = await res.json();
+      const shabad = data?.shabads?.[0];
+      const info = shabad?.shabadInfo;
+      const verses = shabad?.verses ?? [];
+      if (!shabad || !info || verses.length === 0) return base;
+      if ((info.pageNo ?? base.ang) !== base.ang) return base; // different selection — trust SGPC
+      return {
+        ...base,
+        raag: base.raag ?? info.raag?.english ?? undefined,
+        writer: base.writer ?? info.writer?.english ?? undefined,
+        lines: verses.map((raw, i) => mapVerse(raw, base.ang, i)),
+      };
+    } catch {
+      return base;
+    }
+  };
+
+  /**
+   * Legacy BaniDB-only fallback (pre-dawn gap / SGPC unreachable): tries
+   * today then yesterday IST so the Home page never breaks.
+   */
+  const fetchBaniDbFallback = async (): Promise<HukamnamaInfo | null> => {
+    const now = new Date();
+    const istParts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Kolkata",
+      year: "numeric",
+      month: "numeric",
+      day: "numeric",
+    }).formatToParts(now);
+    const get = (type: string) => Number(istParts.find((p) => p.type === type)?.value ?? 0);
+    const candidates = [
+      new Date(get("year"), get("month") - 1, get("day")),
+      new Date(get("year"), get("month") - 1, get("day") - 1),
+    ];
     for (const candidate of candidates) {
       try {
         const y = candidate.getFullYear();
         const m = candidate.getMonth() + 1;
         const d = candidate.getDate();
-        const url = `${BANIDB_BASE}/hukamnamas/${y}/${m}/${d}`;
-        const res = await fetchUpstream(url, { next: { revalidate: 21600 } });
+        const res = await fetchUpstream(`${BANIDB_BASE}/hukamnamas/${y}/${m}/${d}`, {
+          next: { revalidate: 21600 },
+        });
         if (!res.ok) continue;
-
         const data: BaniDbHukamnamaResponse = await res.json();
         const shabad = data?.shabads?.[0];
         if (!shabad) continue;
-
         const info = shabad.shabadInfo ?? {};
         const ang = info.pageNo ?? MIN_ANG;
-        const lines = (shabad.verses ?? []).map((raw, i) => mapVerse(raw, ang, i));
-
         return {
           dateLabel: formatDateLabel(candidate),
           ang,
           raag: info.raag?.english ?? undefined,
           writer: info.writer?.english ?? undefined,
-          lines,
+          lines: (shabad.verses ?? []).map((raw, i) => mapVerse(raw, ang, i)),
           sgpcImage: undefined,
           sgpcPage: SGPC_HUKAMNAMA_URL,
           sourceNote: "Daily Hukamnama — Sri Darbar Sahib, Amritsar (via SGPC)",
         };
       } catch {
-        continue; // try the older candidate before giving up
+        continue;
       }
     }
-    return null; // fail soft: no Hukamnama is better than a broken Home page
+    return null;
   };
 
-  // -- Fetch the SGPC scan and the BaniDB text mirror concurrently -----------
-  const [sgpcResult, baniResult] = await Promise.allSettled([
-    fetchSgpcScan(),
-    fetchBaniText(),
-  ]);
-
-  if (baniResult.status === "rejected" || !baniResult.value) return null;
-  return {
-    ...baniResult.value,
-    sgpcImage: sgpcResult.status === "fulfilled" ? sgpcResult.value : undefined,
-  };
+  // -- hs.sgpc.net forever: source of truth; BaniDB only enriches ----------
+  const sgpc = await fetchHsSgpc();
+  if (sgpc) {
+    if (sgpc.iso) return enrichFromBaniDb(sgpc.info, sgpc.iso);
+    return sgpc.info;
+  }
+  return fetchBaniDbFallback();
 }

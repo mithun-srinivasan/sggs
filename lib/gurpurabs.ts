@@ -1,10 +1,14 @@
 /**
  * lib/gurpurabs.ts
  * ---------------------------------------------------------------------------
- * Static list of the major Sikh holy days (Gurpurabs) shown on the Home page
- * calendar card.  The Nanakshahi calendar fixes these events to specific
- * Gregorian dates, so a static month/day table is accurate for the current
- * era (Nanakshahi is fixed, unlike the Gregorian lunar calendar it replaced).
+ * Major Sikh holy days (Gurpurabs) aligned to the SGPC official calendar for
+ * Nanakshahi Samvat 558 (14 Mar 2026 – 13 Mar 2027).
+ *
+ * Sources: SGPC via SikhNet ("Sikh Gurpurab Calendar 2026-27") and Golden
+ * Temple Amritsar ("Nanakshahi Calendar 558 — Key Gurpurabs").
+ * Lunar-origin observances (e.g. Guru Nanak Dev Ji's Parkash, Bandi Chhor)
+ * move each Gregorian year, so these month/day values are the SGPC 558
+ * occurrences — not perpetual fixed dates.
  *
  * Each entry links to a related Ang so a single tap lands on scripture.
  */
@@ -31,92 +35,138 @@ import type { Gurpurab } from "./types";
  */
 export const GURPURABS: Gurpurab[] = [
   {
-    name: "Parkash Gurpurab — Sri Guru Nanak Dev Ji",
+    name: "Parkash Gurpurab — Sri Guru Tegh Bahadur Ji",
     month: 4,
-    day: 15,
-    ang: 1,
-    description: "Birth of the First Guru — opens with Japji Sahib, his own Bani.",
-  },
-  {
-    name: "Parkash Gurpurab — Sri Guru Gobind Singh Ji",
-    month: 1,
-    day: 6,
-    ang: 10,
-    description:
-      "Birth of the Tenth Guru, founder of the Khalsa — So Purakh from evening Rehras, part of the daily Khalsa Nitnem.",
-  },
-  {
-    name: "Jor Mela — Sri Guru Tegh Bahaadur Ji (Shaheedi)",
-    month: 6,
-    day: 24,
+    day: 7,
     ang: 631,
-    description: "Martyrdom of the Ninth Guru in Delhi — Sorath Bani of Guru Tegh Bahaadur Ji.",
+    description: "Birth of the Ninth Guru (25 Chet 558) — Sorath Bani of Guru Tegh Bahadur Ji.",
   },
   {
-    name: "Shaheedi Diwas — Sri Guru Arjan Dev Ji",
-    month: 6,
-    day: 16,
+    name: "Parkash Gurpurab — Sri Guru Arjan Dev Ji",
+    month: 4,
+    day: 9,
     ang: 262,
-    description: "Martyrdom of the Fifth Guru in Lahore — Sukhmani Sahib, his own Bani.",
+    description: "Birth of the Fifth Guru (27 Chet 558) — Sukhmani Sahib, his own Bani.",
   },
   {
     name: "Khalsa Sajna — Vaisakhi",
     month: 4,
-    day: 13,
+    day: 14,
     ang: 917,
     description:
-      "The Khalsa Panth established in 1699 — Anand Sahib, recited at every Amrit Sanchar.",
+      "The Khalsa Panth established in 1699 (1 Vaisakh 558) — Anand Sahib, recited at every Amrit Sanchar.",
   },
   {
-    name: "Guru Amar Das Ji — Parkash",
-    month: 5,
-    day: 5,
+    name: "Parkash Gurpurab — Sri Guru Angad Dev Ji",
+    month: 4,
+    day: 18,
+    ang: 139,
+    description: "Birth of the Second Guru (5 Vaisakh 558) — Bani of Guru Angad Dev Ji.",
+  },
+  {
+    name: "Parkash Gurpurab — Sri Guru Amar Das Ji",
+    month: 4,
+    day: 30,
     ang: 917,
-    description: "Birth of the Third Guru — Anand Sahib, his own composition.",
+    description: "Birth of the Third Guru (17 Vaisakh 558) — Anand Sahib, his own composition.",
   },
   {
-    name: "Guru Hargobind Ji — Bandi Chhor Divas",
-    month: 10,
-    day: 27,
+    name: "Shaheedi Diwas — Sri Guru Arjan Dev Ji",
+    month: 6,
+    day: 18,
+    ang: 262,
+    description: "Martyrdom of the Fifth Guru in Lahore (4 Harh 558) — Sukhmani Sahib, his own Bani.",
+  },
+  {
+    name: "Parkash Gurpurab — Sri Guru Hargobind Sahib Ji",
+    month: 6,
+    day: 30,
     ang: 14,
     description:
-      "Release of the Sixth Guru and 52 princes from Gwalior Fort — related reading in Sri Raag.",
+      "Birth of the Sixth Guru (16 Harh 558) — related reading in Sri Raag.",
   },
   {
-    name: "Guru Ramdas Ji — Parkash",
-    month: 9,
-    day: 24,
-    ang: 773,
-    description:
-      "Birth of the Fourth Guru, founder of Amritsar — Lavan (Soohi), his own composition.",
-  },
-  {
-    name: "Guru Angad Dev Ji — Parkash",
-    month: 3,
-    day: 31,
-    ang: 139,
-    description: "Birth of the Second Guru — Bani of Guru Angad Dev Ji.",
-  },
-  {
-    name: "Guru Har Rai Ji — Parkash",
-    month: 1,
-    day: 26,
-    ang: 217,
-    description: "Birth of the Seventh Guru — related reading in Raag Gauri.",
-  },
-  {
-    name: "Guru Harkrishan Ji — Parkash",
-    month: 7,
+    name: "Parkash Gurpurab — Sri Guru Harkrishan Sahib Ji",
+    month: 8,
     day: 7,
     ang: 262,
-    description: "Birth of the Eighth Guru — Sukhmani Sahib, the prayer of peace.",
+    description: "Birth of the Eighth Guru (23 Sawan 558) — Sukhmani Sahib, the prayer of peace.",
   },
   {
-    name: "Guru Nanak Dev Ji — Jyoti Jot",
+    name: "Pehla Parkash — Sri Guru Granth Sahib Ji",
     month: 9,
-    day: 22,
+    day: 12,
     ang: 1,
-    description: "Passing (Jyoti Jot) of the First Guru — Japji Sahib, his own Bani.",
+    description:
+      "First Parkash at Sri Harmandir Sahib (27 Bhadon 558) — opens with Japji Sahib.",
+  },
+  {
+    name: "Joti Jot — Sri Guru Nanak Dev Ji",
+    month: 10,
+    day: 5,
+    ang: 1,
+    description: "Passing (Joti Jot) of the First Guru (19 Assu 558) — Japji Sahib, his own Bani.",
+  },
+  {
+    name: "Parkash Gurpurab — Sri Guru Ram Das Ji",
+    month: 10,
+    day: 27,
+    ang: 773,
+    description:
+      "Birth of the Fourth Guru, founder of Amritsar (11 Kattak 558) — Lavan (Soohi), his own composition.",
+  },
+  {
+    name: "Bandi Chhor Divas",
+    month: 11,
+    day: 8,
+    ang: 14,
+    description:
+      "Release of the Sixth Guru and 52 princes from Gwalior Fort (23 Kattak 558, lunar) — related reading in Sri Raag.",
+  },
+  {
+    name: "Gurgaddi — Sri Guru Granth Sahib Ji",
+    month: 11,
+    day: 11,
+    ang: 1,
+    description:
+      "Gurgaddi at Nanded (26 Kattak 558) — opens with Japji Sahib.",
+  },
+  {
+    name: "Parkash Gurpurab — Sri Guru Nanak Dev Ji",
+    month: 11,
+    day: 24,
+    ang: 1,
+    description: "Birth of the First Guru (9 Magghar 558, lunar) — opens with Japji Sahib, his own Bani.",
+  },
+  {
+    name: "Shaheedi Diwas — Sri Guru Tegh Bahadur Ji",
+    month: 12,
+    day: 14,
+    ang: 631,
+    description: "Martyrdom of the Ninth Guru in Delhi (29 Magghar 558) — Sorath Bani of Guru Tegh Bahadur Ji.",
+  },
+  {
+    name: "Shaheedi — Sahibzade & Mata Gujri Ji",
+    month: 12,
+    day: 28,
+    ang: 10,
+    description:
+      "Martyrdom of the younger Sahibzade and Mata Gujri Ji (13 Poh 558) — So Purakh from evening Rehras, part of the daily Khalsa Nitnem.",
+  },
+  {
+    name: "Parkash Gurpurab — Sri Guru Gobind Singh Ji",
+    month: 1,
+    day: 15,
+    ang: 10,
+    description:
+      "Birth of the Tenth Guru, founder of the Khalsa (2 Magh 558) — So Purakh from evening Rehras, part of the daily Khalsa Nitnem.",
+  },
+  {
+    name: "Parkash Gurpurab — Sri Guru Har Rai Sahib Ji",
+    month: 1,
+    day: 31,
+    ang: 217,
+    description: "Birth of the Seventh Guru (18 Magh 558) — related reading in Raag Gauri.",
   },
 ];
 
@@ -126,16 +176,22 @@ export const GURPURABS: Gurpurab[] = [
  *
  * @param from        the base date (defaults to now)
  * @param daysAhead   how far ahead to look (default 45)
+ * @param list        year calendar to use (defaults to bundled SGPC 558;
+ *                    pass the active `useSgpcCalendar().gurpurabs` for auto-update)
  * @returns the matches, already sorted by ascending date
  */
-export function getUpcomingGurpurabs(from: Date = new Date(), daysAhead = 45): {
+export function getUpcomingGurpurabs(
+  from: Date = new Date(),
+  daysAhead = 45,
+  list: Gurpurab[] = GURPURABS
+): {
   gurpurab: Gurpurab;
   date: Date;
   days: number;
 }[] {
   const upcoming: { gurpurab: Gurpurab; date: Date; days: number }[] = [];
 
-  for (const g of GURPURABS) {
+  for (const g of list) {
     // Consider this year's occurrence, and (if already passed) next year's.
     for (const offsetYear of [0, 1]) {
       const candidate = new Date(

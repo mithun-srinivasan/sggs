@@ -2,20 +2,25 @@
  * app/calendar/page.tsx
  * ---------------------------------------------------------------------------
  * Full Nanakshahi calendar (feature 33) — a Gregorian month grid annotated
- * with the overlapping Nanakshahi month(s), Sangrand markers (fixed month
- * starts), and Gurpurab markers linking to each event's verified Bani Ang.
+ * with the overlapping Nanakshahi month(s), Sangrand markers (month starts),
+ * and Gurpurab markers linking to each event's verified Bani Ang.
  *
- * Fully client-side (month navigation needs no network); Gurpurab data comes
- * from the static `GURPURABS` table.
+ * Navigation: Previous / Next buttons, Today button, and Left / Right
+ * arrow keys (ignored while typing in form fields).
+ *
+ * Year-aware with auto-update: the active SGPC year is resolved from the
+ * viewed date via `useSgpcCalendar` (bundled 558 → `/data/sgpc-<year>.json`
+ * + localStorage cache).  Publishing a new year is just adding a new JSON
+ * file — no code change.
  */
 
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
-import { GURPURABS } from "@/lib/gurpurabs";
-import { NANAKSHAHI_MONTHS, sangrandOn, toNanakshahi } from "@/lib/nanakshahi";
+import { ArrowLeft, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
+import { toNanakshahi, sangrandOn } from "@/lib/nanakshahi";
+import { useSgpcCalendar, resolveNanakshahiYear } from "@/lib/sgpc";
 
 /** Monday-first weekday headers, matching the reading heatmap. */
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -30,18 +35,54 @@ export default function CalendarPage() {
   const [viewYear, setViewYear] = useState(now.getFullYear());
   const [viewMonth, setViewMonth] = useState(now.getMonth()); // 0-based
 
+  // Active SGPC year follows the viewed month (auto-updates when a new
+  // `/data/sgpc-<year>.json` release exists).
+  const viewedDate = useMemo(() => new Date(viewYear, viewMonth, 1), [viewYear, viewMonth]);
+  const { year: sgpcYear, months, gurpurabs, source, gregorianSpan, refresh } =
+    useSgpcCalendar(viewedDate);
+  const viewedNanakshahiYear = resolveNanakshahiYear(viewedDate);
+
   /** Step the visible month, rolling over year boundaries. */
-  const stepMonth = (delta: number) => {
-    const next = new Date(viewYear, viewMonth + delta, 1);
-    setViewYear(next.getFullYear());
-    setViewMonth(next.getMonth());
-  };
+  const stepMonth = useCallback(
+    (delta: number) => {
+      const next = new Date(viewYear, viewMonth + delta, 1);
+      setViewYear(next.getFullYear());
+      setViewMonth(next.getMonth());
+    },
+    [viewYear, viewMonth]
+  );
 
   const goToday = () => {
     const today = new Date();
     setViewYear(today.getFullYear());
     setViewMonth(today.getMonth());
   };
+
+  // -- Left / Right arrow-key month navigation -------------------------------
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
+
+      // Never hijack typing in form fields.
+      const target = event.target;
+      const isEditable =
+        target instanceof HTMLElement &&
+        (target.isContentEditable ||
+          ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
+      if (isEditable) return;
+
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        stepMonth(-1);
+      } else if (event.key === "ArrowRight") {
+        event.preventDefault();
+        stepMonth(1);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [stepMonth]);
 
   /** Monday-first grid cells covering the visible month. */
   const cells: DayCell[] = useMemo(() => {
@@ -64,24 +105,24 @@ export default function CalendarPage() {
     return list;
   }, [viewYear, viewMonth]);
 
-  /** Gurpurabs falling inside the visible Gregorian month. */
+  /** Gurpurabs falling inside the visible Gregorian month (active SGPC year). */
   const monthEvents = useMemo(
     () =>
-      GURPURABS.filter((g) => g.month === viewMonth + 1).sort((a, b) => a.day - b.day),
-    [viewMonth]
+      gurpurabs.filter((g) => g.month === viewMonth + 1).sort((a, b) => a.day - b.day),
+    [gurpurabs, viewMonth]
   );
 
   /** Nanakshahi month label(s) overlapping the visible month. */
   const nanakshahiLabel = useMemo(() => {
-    const first = toNanakshahi(new Date(viewYear, viewMonth, 1));
-    const last = toNanakshahi(new Date(viewYear, viewMonth + 1, 0));
-    const a = NANAKSHAHI_MONTHS[first.monthIndex];
-    const b = NANAKSHAHI_MONTHS[last.monthIndex];
+    const first = toNanakshahi(new Date(viewYear, viewMonth, 1), months);
+    const last = toNanakshahi(new Date(viewYear, viewMonth + 1, 0), months);
+    const a = months[first.monthIndex];
+    const b = months[last.monthIndex];
     const year = last.year;
     return first.monthIndex === last.monthIndex
       ? `${a.name} ${year} · ${a.gurmukhi}`
       : `${a.name} – ${b.name} ${year}`;
-  }, [viewYear, viewMonth]);
+  }, [viewYear, viewMonth, months]);
 
   const todayKey = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`;
 
@@ -108,6 +149,7 @@ export default function CalendarPage() {
             <button
               onClick={() => stepMonth(-1)}
               aria-label="Previous month"
+              title="Previous month (←)"
               className="flex h-10 w-10 items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)] transition"
             >
               <ChevronLeft size={18} />
@@ -121,6 +163,7 @@ export default function CalendarPage() {
             <button
               onClick={() => stepMonth(1)}
               aria-label="Next month"
+              title="Next month (→)"
               className="flex h-10 w-10 items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-hover)] transition"
             >
               <ChevronRight size={18} />
@@ -130,12 +173,48 @@ export default function CalendarPage() {
       </header>
 
       <main className="mx-auto max-w-3xl px-5 py-8 sm:px-8">
-        <h2 className="text-center text-base font-bold text-[var(--text)]">
-          {new Date(viewYear, viewMonth, 1).toLocaleDateString("en-GB", {
-            month: "long",
-            year: "numeric",
-          })}
-        </h2>
+        <div className="flex flex-col items-center gap-2">
+          <h2 className="text-center text-base font-bold text-[var(--text)]">
+            {new Date(viewYear, viewMonth, 1).toLocaleDateString("en-GB", {
+              month: "long",
+              year: "numeric",
+            })}
+          </h2>
+          <p className="text-center text-[11px] text-[var(--text-faint)]">
+            Tip: use ← → keys to change month
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <span
+              title={gregorianSpan ?? `Nanakshahi Samvat ${viewedNanakshahiYear}`}
+              className="rounded-full bg-[var(--accent-light)] px-3 py-1 text-[11px] font-bold text-[var(--accent)]"
+            >
+              SGPC {sgpcYear}
+              {source !== "bundled" ? " · updated" : ""}
+            </span>
+            <button
+              onClick={refresh}
+              className="flex min-h-[36px] items-center gap-1.5 rounded-full border border-[var(--border)] px-3 py-1 text-[11px] font-semibold text-[var(--text-muted)] transition hover:text-[var(--text)] hover:border-[var(--accent)] active:scale-[0.97]"
+              aria-label="Check for new SGPC calendar release"
+              title={
+                gregorianSpan
+                  ? `${gregorianSpan} — checks /data/sgpc-${viewedNanakshahiYear}.json for a newer release`
+                  : `Checks /data/sgpc-${viewedNanakshahiYear}.json for a newer SGPC release`
+              }
+            >
+              <RefreshCw size={12} />
+              <span>Check for update</span>
+            </button>
+          </div>
+          {source === "bundled" && viewedNanakshahiYear !== sgpcYear && (
+            <p className="text-center text-[11px] text-[var(--text-muted)]">
+              Showing bundled SGPC {sgpcYear} data — add{" "}
+              <code className="rounded bg-[var(--surface-hover)] px-1 font-mono">
+                /data/sgpc-{viewedNanakshahiYear}.json
+              </code>{" "}
+              to publish the new year (auto-picked up, no code change).
+            </p>
+          )}
+        </div>
 
         {/* Weekday header */}
         <div className="mt-4 grid grid-cols-7 gap-1 text-center text-[10px] font-bold uppercase tracking-wider text-[var(--text-faint)]">
@@ -147,12 +226,12 @@ export default function CalendarPage() {
         </div>
 
         {/* Day grid */}
-        <div className="grid grid-cols-7 gap-1">
+        <div className="mt-4 grid grid-cols-7 gap-1">
           {cells.map(({ date, inMonth }, i) => {
             const m = date.getMonth() + 1;
             const d = date.getDate();
-            const events = inMonth ? GURPURABS.filter((g) => g.month === m && g.day === d) : [];
-            const sangrand = inMonth ? sangrandOn(m, d) : undefined;
+            const events = inMonth ? gurpurabs.filter((g) => g.month === m && g.day === d) : [];
+            const sangrand = inMonth ? sangrandOn(m, d, months) : undefined;
             const isToday =
               `${date.getFullYear()}-${date.getMonth()}-${d}` === todayKey && inMonth;
             return (

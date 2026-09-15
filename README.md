@@ -4,7 +4,7 @@
 [![React](https://img.shields.io/badge/React-19-61dafb)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6)](https://www.typescriptlang.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-38bdf8)](https://tailwindcss.com/)
-[![Tests](https://img.shields.io/badge/Playwright-13_passing-brightgreen)](https://playwright.dev/)
+[![Tests](https://img.shields.io/badge/Playwright-24_tests-brightgreen)](https://playwright.dev/)
 [![License](https://img.shields.io/badge/License-MIT-amber)](./LICENSE)
 
 A focused, verse-by-verse web reader for Sri Guru Granth Sahib Ji — all 1,430 Angs
@@ -50,7 +50,7 @@ flowchart TD
         PREFS["ReaderPrefsProvider<br/>localStorage: sgs-reader-prefs"]
         DATA["Progress · Bookmarks · Notes · Highlights<br/>localStorage providers"]
         SEARCH["Search server action<br/>live BaniDB, no cache"]
-        HUKAM["Hukamnama server action<br/>SGPC scrape + BaniDB mirror, 6h cache"]
+        HUKAM["Hukamnama server action<br/>hs.sgpc.net JSON + audio, BaniDB enrich, 6h cache"]
         SW["Service worker<br/>offline cache + fallback"]
         USER --> STATIC
         STATIC --> PREFS
@@ -76,22 +76,26 @@ flowchart LR
     P --> F["Footer actions<br/>copy · share PNG · highlight · note · bookmark"]
 ```
 
-### Daily Hukamnama flow — including the pre-dawn fallback
+### Daily Hukamnama flow — sourced from hs.sgpc.net, forever
 
-SGPC publishes each day's Hukamnama at Amrit Vela. Between midnight IST and
-then, *today's* selection does not exist yet — so the app transparently serves
-yesterday's (still in effect), labelled with its own date.
+SGPC publishes each day's Hukamnama at Amrit Vela on `hs.sgpc.net` as
+embedded JSON (`#hukamnamaPdfData`: date, Ang, Gurmukhi, Punjabi, English)
+plus audio. The app parses that page as the single source of truth; BaniDB
+only enriches the verses when it carries the same Ang, and a BaniDB-only
+today/yesterday fallback covers the pre-dawn gap or an SGPC outage.
 
 ```mermaid
 flowchart TD
-    IST["Compute today's date in IST"] --> TRY["Try BaniDB hukamnamas YYYY/M/D"]
+    SGPC["Fetch hs.sgpc.net<br/>browser headers, 6h cache"] --> PARSE{"Embedded JSON + audio parsed?"}
+    PARSE -- Yes --> ENRICH["Optional BaniDB enrich<br/>same Ang? use richer verses"]
+    ENRICH --> SHOW["Show Hukamnama<br/>text + audio, labelled with SGPC date"]
+    PARSE -- No --> TRY["Try BaniDB hukamnamas YYYY/M/D"]
     TRY --> OK{"HTTP 200 with shabads?"}
-    OK -- Yes --> SHOW["Show Hukamnama<br/>labelled with that date"]
+    OK -- Yes --> SHOW
     OK -- No --> YEST["Try yesterday's date"]
     YEST --> OK2{"HTTP 200 with shabads?"}
     OK2 -- Yes --> SHOW
-    OK2 -- No --> FALLBACK["Show fallback card<br/>linking to sgpc.net"]
-    IMG["Scrape SGPC page for scan image<br/>runs in parallel, optional"] --> SHOW
+    OK2 -- No --> FALLBACK["Show fallback card<br/>linking to hs.sgpc.net"]
 ```
 
 ### Offline flow — installed PWA without network
@@ -231,6 +235,7 @@ npm run start
 | `npm run start` | Serve the production build locally |
 | `npm run typecheck` | TypeScript `tsc --noEmit` |
 | `npm run lint` | ESLint over the repo (must report 0 errors) |
+| `npm run validate:sgpc` | Validate every `public/data/sgpc-<year>.json` (months, dates, Ang range) |
 | `npm run test` | Playwright suite, headless Chromium |
 | `npm run test:ui` | Playwright interactive UI mode |
 
@@ -253,41 +258,47 @@ app/
     print/page.tsx               Print / PDF layout · PrintAng.tsx controls
   nitnem/page.tsx                Nitnem index (five daily prayers)
   nitnem/[token]/page.tsx        Bani reader (statically generated ×5)
-  bookmarks/page.tsx             Saved verses: tags, print, import/export
+  bookmarks/page.tsx             Saved verses: tags, print, import/export, full backup
   learn/page.tsx                 Gurmukhi chart + practice quiz
   search/page.tsx + actions.ts   Gurbani search (Gurmukhi/Roman/English) + action
-  calendar/page.tsx              Nanakshahi month grid + Gurpurab links
+  calendar/page.tsx              Nanakshahi month grid + Gurpurab links (←/→ keys, auto-update)
 components/
-  NavigationBar.tsx              Top bar (scroll-aware, focus-mode edge peek)
+  NavigationBar.tsx              Top bar (scroll-aware + hover edge-peek on every Ang)
   ReaderControls.tsx             Settings panel (display, modes, languages)
   ReaderPrefsProvider.tsx        Preferences context (localStorage)
   BookmarksProvider.tsx          Bookmarks + tags (localStorage)
   ProgressProvider.tsx           Progress, streaks, history, plans, goals
   NotesProvider.tsx / HighlightsProvider.tsx   Notes + colours (localStorage)
   VerseCard.tsx                  One verse: layers + actions
-  HukamnamaCard.tsx              Daily Hukamnama (SGPC + BaniDB)
+  HukamnamaCard.tsx              Daily Hukamnama (hs.sgpc.net text + audio, BaniDB enrich)
   ShabadOfDayCard.tsx            Random daily shabad (date-keyed cache)
   ReadingHeatmap.tsx             20-week activity grid from visit history
   NitnemCard.tsx                 Home-page daily-prayers card
   ReadingJourney.tsx             Progress/streak/plan/goal card
-  GurpurabCalendar.tsx           Upcoming Gurpurabs card
+  GurpurabCalendar.tsx           Upcoming Gurpurabs card (year-aware + Full-calendar button)
   OfflineIndicator.tsx           Offline banner · ServiceWorkerRegistrar.tsx
   SwipeContainer.tsx · PageTransition.tsx · ShortcutHelp.tsx · SikhSymbols.tsx
 lib/
   data.ts                        BaniDB fetching (timeout+retry), mapping,
-                                 search, Hukamnama (+ pre-dawn fallback), banis
+                                  search, Hukamnama (hs.sgpc.net forever), banis
   types.ts                       Shared types (VerseLine, Bani, prefs, …)
   nitnem.ts                      Nitnem metadata table (client-safe)
-  nanakshahi.ts                  Nanakshahi months, conversion, Sangrand
-  gurpurabs.ts                   Verified Nanakshahi Gurpurab → Ang table
+  nanakshahi.ts                  Nanakshahi months, conversion, Sangrand (SGPC 558)
+  gurpurabs.ts                   SGPC Samvat 558 Gurpurab → Ang table
+  sgpc.ts                        Year-aware SGPC loader (bundled → JSON + cache)
+  backup.ts                      Full local-data backup/restore (5 slices, one file)
   gurmukhi.ts                    Akhar + lagan-matra data for Learn page
   shortcuts.ts · downloadAng.ts · useSwipeNavigation.ts
 public/
-  sw.js                          Service worker (v2 offline caching)
+  sw.js                          Service worker (v3 offline caching, incl. /data JSON)
+  data/sgpc-558.json             SGPC Samvat 558 months + Gurpurabs (add sgpc-559.json for next year)
   icon-192.png · icon-512.png · golden-temple-night.png
+scripts/
+  validate-sgpc.mjs              CI/local validator for public/data/sgpc-*.json
 tests/
   ang-navigation.spec.ts · commentary.spec.ts · learn-gurpurab.spec.ts
-  new-features.spec.ts · more-features.spec.ts   Playwright suite (20 tests)
+  new-features.spec.ts · more-features.spec.ts · sgpc-calendar.spec.ts   Playwright suite (24 tests)
+.github/workflows/ci.yml        CI: typecheck + lint + validate:sgpc + Playwright
 eslint.config.mjs · next.config.ts · next-env.d.ts
 ```
 
@@ -314,10 +325,28 @@ npm run test        # headless Playwright run (Chromium)
 npm run test:ui     # interactive UI mode
 ```
 
-20 tests cover Ang navigation, theme persistence, genuine commentary sources
+24 tests cover Ang navigation, theme persistence, genuine commentary sources
 and switching, the Learn chart, Gurpurab Ang chips, Hindi/Spanish switching,
 pad-arth display, Nitnem pages, the daily goal tracker, visraam markers,
-Shabad of the Day, the heatmap, phonetic-search preview, and the calendar.
+Shabad of the Day, the heatmap, phonetic-search preview, the calendar
+(month grid, ←/→ keyboard nav), the SGPC year JSON, top-bar hover reveal,
+and Hukamnama resolution. CI (`.github/workflows/ci.yml`) runs typecheck,
+lint, `validate:sgpc`, and the full suite on every push/PR.
+
+## SGPC calendar releases (no-code-change years)
+
+The calendar is year-aware. `lib/sgpc.ts` serves the bundled Samvat 558
+tables instantly, then adopts `/data/sgpc-<year>.json` (cached in
+localStorage) when present. To publish a new Nanakshahi year:
+
+1. Copy `public/data/sgpc-558.json` to `public/data/sgpc-559.json`.
+2. Update its month starts, day counts, and Gurpurab month/day entries from
+   the new SGPC jantri (lunar events move every year — never copy them blindly).
+3. Run `npm run validate:sgpc`, then redeploy. The home card, calendar page,
+   and offline cache pick the file up automatically.
+
+Set `NEXT_PUBLIC_SGPC_CALENDAR_BASE_URL` to host the JSON remotely instead
+of bundling it.
 
 ## Data sources and attribution
 
@@ -335,20 +364,23 @@ Foundation), whose published translation sources are:
 | `hi.ss` / `hi.sts` | Hindi renderings | Hindi translation |
 | `es.sn` | Spanish rendering | Spanish translation |
 
-The Daily Hukamnama image and page link come from the
-[official SGPC website](https://www.sgpc.net/hukamnama/); its text is BaniDB's
+The Daily Hukamnama text and audio come from the SGPC live page
+[hs.sgpc.net](https://hs.sgpc.net/) (parsed server-side with browser-like
+headers, 6-hour cache); its text is BaniDB's
 mirror of the same Sri Darbar Sahib selection. Review both providers' current
 terms before deploying publicly.
 
 ## Current limitations
 
 - Bookmarks, preferences, progress, notes, and highlights are browser-local
-  with no account or sync.
+  with no account or sync — use “Back up all” on the bookmarks page to
+  export all five slices to one JSON file, and restore it after clearing
+  browser data.
 - Search depends on the BaniDB service and network availability.
 - Ang/bani data is fetched once at build time — a rebuild picks up any
   upstream corrections.
-- SGPC publishes the Hukamnama only as an image, so its text is mirrored
-  from BaniDB rather than parsed from SGPC directly.
+- Lunar-origin Gurpurabs move every Gregorian year, so each new Nanakshahi
+  year needs its own `public/data/sgpc-<year>.json` (see above).
 
 ## License
 

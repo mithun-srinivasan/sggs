@@ -9,6 +9,9 @@
  *   - Fullscreen toggle, Search link, Bookmarks link, Settings toggle
  *   - Scroll-aware auto-hide: hides as the user scrolls down to read,
  *     reappears immediately on upward scroll (or when controls are open)
+ *   - Hover-aware edge-peek on every Ang: moving the mouse to the top edge
+ *     (or hovering the bar itself) reveals it, moving away hides it again
+ *     (focus mode uses hover-peek exclusively, without scroll-reveal)
  *   - Keyboard arrow-key navigation (Left → prev, Right → next)
  *   - Popover settings panel via `ReaderControls`
  *
@@ -72,8 +75,10 @@ export default function NavigationBar({ angNumber }: { angNumber: number }) {
   /** Whether the document is currently in fullscreen mode. */
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  /** Focus-mode edge-peek: whether the bar is currently revealed because the
-   *  pointer is near the top edge.  Only meaningful while `isFocusMode` is on. */
+  /** Edge-peek: whether the bar is currently revealed because the pointer is
+   *  near the top edge (or hovering the bar itself).  Works on every Ang —
+   *  in focus mode it is the *only* way the bar reveals, outside focus mode
+   *  it works *in addition to* the scroll-aware behaviour. */
   const [peeked, setPeeked] = useState(false);
 
   /** Delayed-hide timer so the bar doesn't flicker while crossing the top zone. */
@@ -84,7 +89,32 @@ export default function NavigationBar({ angNumber }: { angNumber: number }) {
     controlsOpenRef.current = controlsOpen;
   }, [controlsOpen]);
 
-  // -- Focus-mode edge-peek -------------------------------------------------
+  /** Clears any pending peek-hide timer. */
+  const cancelPeekHide = () => {
+    if (peekTimer.current) {
+      clearTimeout(peekTimer.current);
+      peekTimer.current = null;
+    }
+  };
+
+  /** Reveals the bar immediately (pointer entered top zone / bar). */
+  const revealPeek = useCallback(() => {
+    cancelPeekHide();
+    setPeeked(true);
+  }, []);
+
+  /** Schedules the bar to hide (pointer left top zone / bar).  No-op while
+   *  the settings popover is open so the panel stays interactive. */
+  const schedulePeekHide = useCallback(() => {
+    if (controlsOpenRef.current) return;
+    if (peekTimer.current) return;
+    peekTimer.current = setTimeout(() => {
+      peekTimer.current = null;
+      setPeeked(false);
+    }, PEEK_HIDE_DELAY);
+  }, []);
+
+  // -- Edge-peek on mouse movement (every Ang, every mode) -------------------
 
   // Reset the peek slot when focus mode toggles (adjust state during render,
   // per the React docs — avoids a stale peek after toggling the mode off/on).
@@ -95,26 +125,15 @@ export default function NavigationBar({ angNumber }: { angNumber: number }) {
   }
 
   useEffect(() => {
-    if (!isFocusMode) return;
-
     const handleMouseMove = (event: MouseEvent) => {
-      // Pointer inside the top zone → reveal immediately.
+      // Pointer inside the top zone (or over the bar itself) → reveal immediately.
       if (event.clientY <= TOP_PEEK_ZONE) {
-        if (peekTimer.current) {
-          clearTimeout(peekTimer.current);
-          peekTimer.current = null;
-        }
-        setPeeked(true);
+        revealPeek();
         return;
       }
       // Pointer left the zone further than the bar itself → hide, unless the
       // Settings popover is open (the panel reaches below the top zone).
-      if (controlsOpenRef.current) return;
-      if (peekTimer.current) return;
-      peekTimer.current = setTimeout(() => {
-        peekTimer.current = null;
-        setPeeked(false);
-      }, PEEK_HIDE_DELAY);
+      schedulePeekHide();
     };
 
     window.addEventListener("mousemove", handleMouseMove);
@@ -122,7 +141,7 @@ export default function NavigationBar({ angNumber }: { angNumber: number }) {
       window.removeEventListener("mousemove", handleMouseMove);
       if (peekTimer.current) clearTimeout(peekTimer.current);
     };
-  }, [isFocusMode]);
+  }, [revealPeek, schedulePeekHide]);
 
   useEffect(() => {
     try {
@@ -227,12 +246,15 @@ export default function NavigationBar({ angNumber }: { angNumber: number }) {
     goTo(Number.isNaN(n) ? angNumber : n);
   };
 
-  /** Whether the bar is currently shown: normal scroll-aware behaviour when
-   *  focus mode is off; edge-peek (or settings popover) when it is on. */
-  const shown = isFocusMode ? peeked || controlsOpen : visible;
+  /** Whether the bar is currently shown: in focus mode only edge-peek (or
+   *  settings popover) reveals it; otherwise scroll-aware visibility OR
+   *  mouse hover near the top edge (peek) reveals it on every Ang. */
+  const shown = isFocusMode ? peeked || controlsOpen : visible || peeked || controlsOpen;
 
   return (
     <header
+      onMouseEnter={revealPeek}
+      onMouseLeave={schedulePeekHide}
       className={`fixed top-0 inset-x-0 z-30 glass-nav-pinned transition-transform duration-300 ease-out ${
         shown ? "translate-y-0" : "-translate-y-full"
       } border-b border-[var(--border)]`}

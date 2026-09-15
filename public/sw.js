@@ -12,13 +12,16 @@
  *   - Static Next.js build assets & hashed chunks → **cache-first forever**
  *     (immutable, content-hashed).
  *   - Font & image files → **stale-while-revalidate** for freshness.
+ *   - Same-origin JSON data (e.g. `/data/sgpc-<year>.json` year calendars) →
+ *     **stale-while-revalidate** so the SGPC auto-update works offline after
+ *     the first visit.
  *   - All other / cross-origin requests (e.g. BaniDB API from the client) are
  *     left untouched so nothing is cached accidentally.
  *
  * The version string in `CACHE` busts the cache whenever the build changes.
  */
 
-const CACHE = "sggs-reader-v2";
+const CACHE = "sggs-reader-v3";
 const SHELL_CACHE = `${CACHE}-shell`;
 
 /** Entry documents precached on install for instant offline opens. */
@@ -105,6 +108,26 @@ self.addEventListener("fetch", (event) => {
           .then((response) => {
             const copy = response.clone();
             caches.open(SHELL_CACHE).then((cache) => cache.put(request, copy));
+            return response;
+          })
+          .catch(() => cached);
+        return cached || network;
+      })
+    );
+    return;
+  }
+
+  // Same-origin JSON data files (SGPC year calendars): stale-while-revalidate
+  // so month navigation and Gurpurabs keep working offline after one visit.
+  if (url.pathname.startsWith("/data/") && url.pathname.endsWith(".json")) {
+    event.respondWith(
+      caches.match(request).then((cached) => {
+        const network = fetch(request)
+          .then((response) => {
+            if (response.ok) {
+              const copy = response.clone();
+              caches.open(SHELL_CACHE).then((cache) => cache.put(request, copy));
+            }
             return response;
           })
           .catch(() => cached);

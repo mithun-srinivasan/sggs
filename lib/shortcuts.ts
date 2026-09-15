@@ -10,7 +10,7 @@ import type { Shortcut } from "./types";
 
 /** Every shortcut the app reacts to, with human-readable descriptions. */
 export const SHORTCUTS: Shortcut[] = [
-  { keys: "← / →", description: "Previous / next Ang (reader)" },
+  { keys: "← / →", description: "Previous / next Ang (reader) · Previous / next month (calendar)" },
   { keys: "?", description: "Open this keyboard-shortcut help" },
   { keys: "h", description: "Go to the Home page" },
   { keys: "b", description: "Open Saved Bookmarks" },

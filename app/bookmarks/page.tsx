@@ -12,6 +12,10 @@
  *   - **Print (feature 15):** `print` button renders a clean printed list;
  *     `@media print` CSS hides the interactive chrome.
  *   - Export / Import bookmarks as timestamped JSON.
+ *   - **Full backup (data safety):** one file with bookmarks + notes +
+ *     highlights + progress + preferences (`lib/backup.ts`), since every
+ *     slice is browser-local with no account or sync.  Restoring reloads
+ *     the page so all providers rehydrate.
  *   - A theme toggle cycles through Light → Dark → Sepia (3-way cycle).
  *
  * Data is managed entirely by `BookmarksProvider` (localStorage-backed).
@@ -37,6 +41,7 @@ import {
 } from "lucide-react";
 import { useBookmarks } from "@/components/BookmarksProvider";
 import { useReaderPrefs } from "@/components/ReaderPrefsProvider";
+import { downloadBackup, restoreBackup, lastBackupAt } from "@/lib/backup";
 import { getBaniName } from "@/lib/nitnem";
 
 export default function BookmarksPage() {
@@ -47,8 +52,20 @@ export default function BookmarksPage() {
   /** Hidden file input ref — clicked programmatically via the Upload button. */
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  /** Hidden file input for full-backup restore files. */
+  const backupInputRef = useRef<HTMLInputElement>(null);
+
   /** Import feedback state: "idle" → "success"/"error" → "idle" (after 3s). */
   const [importStatus, setImportStatus] = useState<"idle" | "success" | "error">("idle");
+
+  /** Full-backup restore feedback + last-backup timestamp. */
+  const [backupStatus, setBackupStatus] = useState<"idle" | "success" | "error">("idle");
+  const [lastBackup, setLastBackup] = useState<string | null>(null);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- deliberate post-mount hydration from localStorage
+    setLastBackup(lastBackupAt());
+  }, []);
 
   /** Currently active tag filter (`null` = show everything). */
   const [activeTag, setActiveTag] = useState<string | null>(null);
@@ -108,6 +125,33 @@ export default function BookmarksPage() {
   const commitTag = (verseId: string) => {
     addTag(verseId, tagDraft);
     setTagDraft("");
+  };
+
+  // -- Full backup: all local slices in one file (see lib/backup.ts) ----------
+
+  const handleBackupExport = () => {
+    downloadBackup();
+    setLastBackup(lastBackupAt());
+  };
+
+  const handleBackupImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const restored = restoreBackup(event.target?.result as string);
+      if (restored > 0) {
+        setBackupStatus("success");
+        // Providers hydrate once on mount — reload so every restored slice applies.
+        setTimeout(() => window.location.reload(), 1200);
+      } else {
+        setBackupStatus("error");
+        if (importTimer.current) clearTimeout(importTimer.current);
+        importTimer.current = setTimeout(() => setBackupStatus("idle"), 3000);
+      }
+    };
+    reader.readAsText(file);
+    if (backupInputRef.current) backupInputRef.current.value = "";
   };
 
   // -- Theme cycle: Light → Dark → Sepia → Light ----------------------------
@@ -213,6 +257,64 @@ export default function BookmarksPage() {
       </header>
 
       <main className="mx-auto max-w-3xl px-5 py-8 sm:px-8">
+        {/* Full-backup reminder: everything is browser-local, no account/sync */}
+        <section
+          aria-label="Full data backup"
+          className="mb-6 rounded-2xl border border-[var(--border)] bg-[var(--surface)]/80 p-4 sm:p-5"
+        >
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-xs font-bold text-[var(--text)]">
+                Back up your data
+              </h2>
+              <p className="mt-1 text-[11px] leading-relaxed text-[var(--text-muted)]">
+                Bookmarks, notes, highlights, progress, and settings live only
+                in this browser.{" "}
+                {lastBackup
+                  ? `Last full backup: ${new Date(lastBackup).toLocaleDateString()}.`
+                  : "No full backup yet — export one now."}
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                onClick={handleBackupExport}
+                aria-label="Download full backup"
+                title="Download bookmarks + notes + highlights + progress + settings"
+                className="flex min-h-[44px] items-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2 text-xs font-semibold text-white transition hover:opacity-90 active:scale-[0.97]"
+              >
+                <Download size={14} />
+                <span>Back up all</span>
+              </button>
+              <button
+                onClick={() => backupInputRef.current?.click()}
+                aria-label="Restore full backup"
+                title="Restore from a backup file (reloads the page)"
+                className="flex min-h-[44px] items-center gap-2 rounded-xl border border-[var(--border)] px-4 py-2 text-xs font-semibold text-[var(--text)] transition hover:bg-[var(--surface-hover)] active:scale-[0.97]"
+              >
+                <Upload size={14} />
+                <span>Restore</span>
+              </button>
+              <input
+                ref={backupInputRef}
+                type="file"
+                accept=".json"
+                onChange={handleBackupImport}
+                className="hidden"
+              />
+            </div>
+          </div>
+          {backupStatus === "success" && (
+            <p className="mt-3 rounded-lg bg-green-600/20 px-3 py-2 text-[11px] font-medium text-green-400">
+              Backup restored — reloading with your data…
+            </p>
+          )}
+          {backupStatus === "error" && (
+            <p className="mt-3 rounded-lg bg-red-600/20 px-3 py-2 text-[11px] font-medium text-red-400">
+              Invalid backup file. Please choose a file exported with “Back up all”.
+            </p>
+          )}
+        </section>
+
         {/* Import success / error banners */}
         {importStatus === "success" && (
           <div className="mb-4 rounded-lg bg-green-600/20 px-4 py-2 text-xs font-medium text-green-400">
