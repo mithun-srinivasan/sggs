@@ -5,9 +5,15 @@
  *
  * Content comes from hs.sgpc.net forever (see `getHukamnama` in lib/data.ts):
  * Gurmukhi verses plus the official English translation, transliteration
- * (when the BaniDB enrichment carries it), and SGPC audio players. Each
- * verse renders as a layered block — Gurmukhi, transliteration, English —
- * with toggle pills so readers control which layers they see.
+ * (when the BaniDB enrichment carries it), and SGPC audio. Each verse
+ * renders as a layered block — Gurmukhi, transliteration, English — with
+ * toggle pills so readers control which layers they see.
+ *
+ * The source Ang is shown as a prominent linked pill (Sri Darbar Sahib,
+ * Amritsar · Ang N) so readers always know where the Hukamnama was taken
+ * from. Audio uses a small themed player (CSS vars only, so light/dark/
+ * sepia all re-theme instantly) instead of the browser-native controls,
+ * which ignore the app theme.
  *
  * It fetches after mount (it lives inside a client component Home page) and
  * renders a quiet skeleton while loading.
@@ -15,11 +21,229 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Sunrise, ExternalLink } from "lucide-react";
+import {
+  ArrowRight,
+  BookOpen,
+  Download,
+  Pause,
+  Play,
+  RotateCcw,
+  RotateCw,
+  Sunrise,
+  ExternalLink,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
 import type { HukamnamaInfo } from "@/lib/types";
 import { getTodaysHukamnama } from "@/app/actions";
+
+// -- Themed audio player ------------------------------------------------------
+// Custom controls bound to a hidden <audio> element. Native controls can't
+// follow the app theme (they render in the browser's chrome), hence this
+// lightweight player using only var(--…) tokens.
+
+/** m:ss formatter for the player timestamps. */
+function formatPlayerTime(totalSeconds: number): string {
+  if (!Number.isFinite(totalSeconds) || totalSeconds < 0) return "0:00";
+  const m = Math.floor(totalSeconds / 60);
+  const s = Math.floor(totalSeconds % 60);
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+/** Playback speeds cycled by the rate button. */
+const PLAYER_RATES = [1, 1.25, 1.5, 2, 0.75] as const;
+
+function HukamnamaAudioPlayer({
+  src,
+  title,
+  audioLabel,
+}: {
+  src: string;
+  title: string;
+  audioLabel: string;
+}) {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const [current, setCurrent] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [rate, setRate] = useState<number>(1);
+  const [muted, setMuted] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  // Pause when another player on the page starts — two daily audios
+  // (Hukamnama + Katha) must never overlap.
+  useEffect(() => {
+    const el = audioRef.current;
+    if (!el) return;
+    const onPlay = () => {
+      document.querySelectorAll("audio").forEach((other) => {
+        if (other !== el && !other.paused) void other.pause();
+      });
+    };
+    el.addEventListener("play", onPlay);
+    return () => el.removeEventListener("play", onPlay);
+  }, []);
+
+  useEffect(() => {
+    const el = audioRef.current;
+    if (!el) return;
+    el.playbackRate = rate;
+  }, [rate]);
+
+  useEffect(() => {
+    const el = audioRef.current;
+    if (!el) return;
+    el.muted = muted;
+  }, [muted]);
+
+  const toggle = async () => {
+    const el = audioRef.current;
+    if (!el) return;
+    if (el.paused) {
+      try {
+        await el.play();
+      } catch {
+        setFailed(true);
+      }
+    } else {
+      el.pause();
+    }
+  };
+
+  const seekBy = (delta: number) => {
+    const el = audioRef.current;
+    if (!el || !Number.isFinite(el.duration)) return;
+    el.currentTime = Math.min(
+      Math.max(0, el.currentTime + delta),
+      el.duration || 0
+    );
+  };
+
+  const cycleRate = () => {
+    const idx = PLAYER_RATES.indexOf(rate as (typeof PLAYER_RATES)[number]);
+    setRate(PLAYER_RATES[(idx + 1) % PLAYER_RATES.length]);
+  };
+
+  const progress = duration > 0 ? Math.min(1, current / duration) : 0;
+
+  return (
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--bg)]/70 p-3">
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={toggle}
+          aria-label={playing ? `Pause ${audioLabel}` : `Play ${audioLabel}`}
+          className="flex h-10 w-10 min-h-[40px] min-w-[40px] shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-white shadow-sm transition hover:opacity-90 active:scale-95"
+        >
+          {playing ? <Pause size={16} /> : <Play size={16} className="ml-0.5" />}
+        </button>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-xs font-bold text-[var(--text)]">{title}</p>
+          <p className="mt-0.5 text-[11px] tabular-nums text-[var(--text-muted)]">
+            {formatPlayerTime(current)} /{" "}
+            {duration > 0 ? formatPlayerTime(duration) : "–:––"}
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-1">
+          <button
+            type="button"
+            onClick={cycleRate}
+            aria-label={`Playback speed for ${audioLabel}`}
+            title="Playback speed"
+            className="min-h-[36px] min-w-[44px] rounded-lg border border-[var(--border)] px-2 text-[11px] font-bold tabular-nums text-[var(--text-muted)] transition hover:text-[var(--text)]"
+          >
+            {rate}x
+          </button>
+          <button
+            type="button"
+            onClick={() => setMuted((v) => !v)}
+            aria-label={muted ? `Unmute ${audioLabel}` : `Mute ${audioLabel}`}
+            aria-pressed={muted}
+            className="flex min-h-[36px] min-w-[36px] items-center justify-center rounded-lg border border-[var(--border)] text-[var(--text-muted)] transition hover:text-[var(--text)]"
+          >
+            {muted ? <VolumeX size={14} /> : <Volume2 size={14} />}
+          </button>
+          <a
+            href={src}
+            download
+            aria-label={`Download ${audioLabel}`}
+            title="Download audio"
+            className="flex min-h-[36px] min-w-[36px] items-center justify-center rounded-lg border border-[var(--border)] text-[var(--text-muted)] transition hover:text-[var(--text)]"
+          >
+            <Download size={14} />
+          </a>
+        </div>
+      </div>
+      {/* Seek bar + 10s skip — slider uses the theme accent via accent-color */}
+      <div className="mt-2 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => seekBy(-10)}
+          aria-label={`Back 10 seconds in ${audioLabel}`}
+          className="flex min-h-[32px] min-w-[32px] items-center justify-center rounded-md text-[var(--text-faint)] transition hover:text-[var(--text)]"
+        >
+          <RotateCcw size={14} />
+        </button>
+        <input
+          type="range"
+          min={0}
+          max={duration > 0 ? duration : 0}
+          step={0.1}
+          value={duration > 0 ? current : 0}
+          disabled={duration <= 0}
+          onChange={(e) => {
+            const el = audioRef.current;
+            const next = Number(e.target.value);
+            if (!el || !Number.isFinite(next)) return;
+            el.currentTime = next;
+            setCurrent(next);
+          }}
+          aria-label={`Seek in ${audioLabel}`}
+          className="h-1.5 w-full cursor-pointer accent-[var(--accent)] disabled:cursor-default disabled:opacity-40"
+          style={{
+            background: `linear-gradient(to right, var(--accent) ${progress * 100}%, var(--border) ${progress * 100}%)`,
+          }}
+        />
+        <button
+          type="button"
+          onClick={() => seekBy(10)}
+          aria-label={`Forward 10 seconds in ${audioLabel}`}
+          className="flex min-h-[32px] min-w-[32px] items-center justify-center rounded-md text-[var(--text-faint)] transition hover:text-[var(--text)]"
+        >
+          <RotateCw size={14} />
+        </button>
+      </div>
+      {failed && (
+        <p className="mt-1.5 text-[11px] text-[var(--text-muted)]">
+          Audio could not be played here —{" "}
+          <a
+            href={src}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-[var(--accent)] hover:underline"
+          >
+            open it directly
+          </a>
+          .
+        </p>
+      )}
+      <audio
+        ref={audioRef}
+        preload="none"
+        src={src}
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+        onEnded={() => setPlaying(false)}
+        onTimeUpdate={(e) => setCurrent(e.currentTarget.currentTime || 0)}
+        onLoadedMetadata={(e) => setDuration(e.currentTarget.duration || 0)}
+        onDurationChange={(e) => setDuration(e.currentTarget.duration || 0)}
+        onError={() => setFailed(true)}
+      />
+    </div>
+  );
+}
 
 export default function HukamnamaCard() {
   const [hukamnama, setHukamnama] = useState<HukamnamaInfo | null>(null);
@@ -115,10 +339,27 @@ export default function HukamnamaCard() {
       <div className={`mt-4 grid gap-5 ${showMedia ? "sm:grid-cols-[minmax(0,1fr)_180px]" : ""}`}>
         {/* Verse layers: Gurmukhi + transliteration + English, one block per tuk */}
         <div className="space-y-2">
-          <p className="text-[11px] font-semibold text-[var(--text-faint)]">
-            {hukamnama.raag ?? ""}
-            {hukamnama.raag && hukamnama.writer ? " · " : ""}
-            {hukamnama.writer ?? ""}
+          {/* Source line — Raag/Writer plus a prominent linked Ang pill so
+              readers always see where this Hukamnama was taken from */}
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href={`/ang/${hukamnama.ang}`}
+              aria-label={`Read Hukamnama on Ang ${hukamnama.ang}`}
+              className="inline-flex min-h-[32px] items-center gap-1.5 rounded-full border border-[var(--accent)]/30 bg-[var(--accent-light)] px-3 py-1 text-xs font-bold text-[var(--accent)] transition hover:opacity-90 active:scale-[0.98]"
+            >
+              <BookOpen size={12} />
+              <span>Ang {hukamnama.ang}</span>
+            </Link>
+            {(hukamnama.raag || hukamnama.writer) && (
+              <p className="text-[11px] font-semibold text-[var(--text-faint)]">
+                {hukamnama.raag ?? ""}
+                {hukamnama.raag && hukamnama.writer ? " · " : ""}
+                {hukamnama.writer ?? ""}
+              </p>
+            )}
+          </div>
+          <p className="text-[11px] text-[var(--text-faint)]">
+            Sri Darbar Sahib, Amritsar · {hukamnama.dateLabel}
           </p>
 
           {/* Layer toggles — rendered only for layers that actually exist */}
@@ -175,24 +416,24 @@ export default function HukamnamaCard() {
               </div>
             ))}
           </div>
-          {/* Official SGPC audio — the actual daily media hs.sgpc.net publishes */}
+          {/* Official SGPC audio — the actual daily media hs.sgpc.net publishes,
+              played through the themed player above (native controls ignore
+              the app theme) */}
           {(hukamnama.sgpcAudio || hukamnama.sgpcKathaAudio) && (
             <div className="space-y-2 pt-2">
               {hukamnama.sgpcAudio && (
-                <div>
-                  <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-[var(--text-faint)]">
-                    Hukamnama Audio (SGPC)
-                  </p>
-                  <audio controls preload="none" src={hukamnama.sgpcAudio} className="w-full" />
-                </div>
+                <HukamnamaAudioPlayer
+                  src={hukamnama.sgpcAudio}
+                  title="Hukamnama Audio (SGPC)"
+                  audioLabel="Hukamnama audio"
+                />
               )}
               {hukamnama.sgpcKathaAudio && (
-                <div>
-                  <p className="mb-1 text-[10px] font-bold uppercase tracking-wider text-[var(--text-faint)]">
-                    Katha Audio (SGPC)
-                  </p>
-                  <audio controls preload="none" src={hukamnama.sgpcKathaAudio} className="w-full" />
-                </div>
+                <HukamnamaAudioPlayer
+                  src={hukamnama.sgpcKathaAudio}
+                  title="Katha Audio (SGPC)"
+                  audioLabel="Katha audio"
+                />
               )}
             </div>
           )}
