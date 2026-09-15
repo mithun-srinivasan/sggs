@@ -73,6 +73,77 @@ async function fetchUpstream(url: string, init?: RequestInit): Promise<Response>
  *  2022 attachment with no daily content). */
 const SGPC_HUKAMNAMA_URL = "https://hs.sgpc.net/";
 
+/** Host serving SGPC's static Hukamnama media (same origin as the daily page). */
+const SGPC_MEDIA_HOST = "https://hs.sgpc.net";
+
+/** Calendar-date parts used to derive SGPC's date-based audio filenames. */
+interface SgpcDateParts { y: number; m: number; d: number; }
+
+/** Today's calendar date in Asia/Kolkata — SGPC publishes on the IST date. */
+function istTodayParts(now = new Date()): SgpcDateParts {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+  }).formatToParts(now);
+  const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? 0);
+  return { y: get("year"), m: get("month"), d: get("day") };
+}
+
+/**
+ * Tolerantly extracts an SGPC audio URL for `dir` (`hukamnamaaudio` /
+ * `kathaaudio`) from the daily-page HTML. Deliberately loose — either quote
+ * style, optional host (relative paths resolve against the media host),
+ * whitespace around `=` — because the markup is a third-party page that
+ * changes without notice, and a missed match used to drop the player
+ * silently. Returns `undefined` when the tag isn't found.
+ */
+function extractSgpcAudioUrl(html: string, dir: "hukamnamaaudio" | "kathaaudio"): string | undefined {
+  const m = html.match(
+    new RegExp(`src\\s*=\\s*["']((?:https?://hs\\.sgpc\\.net)?/${dir}/[^"']+?\\.mp3(?:[^"']*)?)["']`, "i")
+  );
+  if (!m) return undefined;
+  return m[1].startsWith("/") ? `${SGPC_MEDIA_HOST}${m[1]}` : m[1];
+}
+
+/**
+ * Date-derived fallback for SGPC's audio URLs (`SGPCNET{DDMMYY}.mp3` and
+ * `katha{DDMMYY}.mp3` on the IST calendar — the naming has held for every
+ * observed day). Used when the page markup no longer carries the `<audio>`
+ * tags, so a third-party markup change can't silently drop the players.
+ */
+function sgpcAudioUrlsForDate({ y, m, d }: SgpcDateParts): { audio: string; katha: string } {
+  const tag = `${String(d).padStart(2, "0")}${String(m).padStart(2, "0")}${String(y).slice(2)}`;
+  return {
+    audio: `${SGPC_MEDIA_HOST}/hukamnamaaudio/SGPCNET${tag}.mp3`,
+    katha: `${SGPC_MEDIA_HOST}/kathaaudio/katha${tag}.mp3`,
+  };
+}
+
+/**
+ * Best-effort existence probe for a synthesized audio URL (short timeout, no
+ * retries, never throws). Guards the BaniDB-fallback path — where that date's
+ * audio may simply not be published yet — against attaching a player that
+ * would 404 on first play.
+ */
+async function verifySgpcAudioUrl(url: string): Promise<string | undefined> {
+  try {
+    const res = await fetch(url, {
+      method: "HEAD",
+      signal: AbortSignal.timeout(6000),
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36",
+        Referer: `${SGPC_MEDIA_HOST}/`,
+      },
+    });
+    return res.ok ? url : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 // -------------------------------------------------------------------------
 // Raw BaniDB response shapes — only the fields this app consumes.
 // Kept here (not in lib/types.ts) because they are API internals, not app types.
@@ -431,10 +502,17 @@ export function clampAng(n: number): number {
  * never depends on a third-party mirror for its content:
  *
  *   1. hs.sgpc.net → date, Ang, Gurmukhi verses, Punjabi + English, audio;
+ *      audio URLs come from the page's `<audio>` tags, falling back to the
+ *      date-derived filenames (`SGPCNET{DDMMYY}.mp3` / `katha{DDMMYY}.mp3`)
+ *      so a markup change can't silently drop the players;
  *   2. BaniDB enrichment (optional, best-effort): when BaniDB's
  *      `/hukamnamas` mirror carries the *same* Ang, its richer verse objects
  *      (transliteration etc.) replace the plain parsed lines — but a BaniDB
  *      outage never breaks the card because the SGPC-parsed lines stand alone.
+ *
+ * When the SGPC page itself is unreachable (e.g. a Cloudflare challenge to
+ * datacenter IPs), the BaniDB today/yesterday fallback still restores
+ * HEAD-verified date-derived audio, so the players survive an SGPC outage.
  *
  * The result is cached for 6 hours (`revalidate: 21600`) because the
  * Hukamnama changes at Amrit Vela each morning, never more often.
@@ -519,12 +597,8 @@ export async function getHukamnama(): Promise<HukamnamaInfo | null> {
         return null; // Cloudflare challenge — caller falls back to BaniDB text
       }
 
-      const audioMatch = html.match(
-        /src="(https:\/\/hs\.sgpc\.net\/hukamnamaaudio\/[^"]+\.mp3[^"]*)"/i
-      );
-      const kathaMatch = html.match(
-        /src="(https:\/\/hs\.sgpc\.net\/kathaaudio\/[^"]+\.mp3[^"]*)"/i
-      );
+      const audioUrl = extractSgpcAudioUrl(html, "hukamnamaaudio");
+      const kathaUrl = extractSgpcAudioUrl(html, "kathaaudio");
 
       const jsonRaw = html.match(
         /<script[^>]+id="hukamnamaPdfData"[^>]*>([\s\S]*?)<\/script>/i
@@ -602,6 +676,15 @@ export async function getHukamnama(): Promise<HukamnamaInfo | null> {
       }
 
       const iso = /^\d{4}-\d{2}-\d{2}$/.test(json.date ?? "") ? (json.date as string) : "";
+      // Date-derived audio fallback: SGPC's filenames track the Hukamnama's
+      // own IST date, so a markup change that hides the <audio> tags still
+      // leaves working players instead of silently dropping them.
+      const isoParts = iso.split("-").map(Number);
+      const dated: SgpcDateParts =
+        isoParts.length === 3 && isoParts.every((n) => Number.isFinite(n) && n > 0)
+          ? { y: isoParts[0], m: isoParts[1], d: isoParts[2] }
+          : istTodayParts();
+      const datedAudio = sgpcAudioUrlsForDate(dated);
       return {
         info: {
           dateLabel: formatDateLabel(dateObj),
@@ -610,8 +693,8 @@ export async function getHukamnama(): Promise<HukamnamaInfo | null> {
           writer: writerFromMehl(eheading, gheading),
           lines: fullLines,
           sgpcImage: undefined, // hs.sgpc.net publishes no daily image — audio is the media
-          sgpcAudio: audioMatch?.[1],
-          sgpcKathaAudio: kathaMatch?.[1],
+          sgpcAudio: audioUrl ?? datedAudio.audio,
+          sgpcKathaAudio: kathaUrl ?? datedAudio.katha,
           sgpcPage: SGPC_HUKAMNAMA_URL,
           sourceNote: "Daily Hukamnama — Sri Darbar Sahib, Amritsar (SGPC hs.sgpc.net)",
         },
@@ -654,26 +737,32 @@ export async function getHukamnama(): Promise<HukamnamaInfo | null> {
 
   /**
    * Legacy BaniDB-only fallback (pre-dawn gap / SGPC unreachable): tries
-   * today then yesterday IST so the Home page never breaks.
+   * today then yesterday IST so the Home page never breaks. SGPC's audio
+   * filenames track the IST date, so even with the SGPC page unreachable
+   * (e.g. a Cloudflare challenge to datacenter IPs — the classic silent
+   * audio loss when deployed) the players are restored from HEAD-verified
+   * date-derived URLs; unverifiable dates simply carry no audio, as before.
    */
   const fetchBaniDbFallback = async (): Promise<HukamnamaInfo | null> => {
-    const now = new Date();
-    const istParts = new Intl.DateTimeFormat("en-GB", {
-      timeZone: "Asia/Kolkata",
-      year: "numeric",
-      month: "numeric",
-      day: "numeric",
-    }).formatToParts(now);
-    const get = (type: string) => Number(istParts.find((p) => p.type === type)?.value ?? 0);
-    const candidates = [
-      new Date(get("year"), get("month") - 1, get("day")),
-      new Date(get("year"), get("month") - 1, get("day") - 1),
+    const today = istTodayParts();
+    const candidates: { date: Date; parts: SgpcDateParts }[] = [
+      { date: new Date(today.y, today.m - 1, today.d), parts: today },
+      { date: new Date(today.y, today.m - 1, today.d - 1), parts: { y: today.y, m: today.m, d: today.d - 1 } },
     ];
+    // Yesterday's parts can underflow the month (e.g. the 1st) — normalise
+    // through the Date so the audio tag matches the calendar date.
+    for (const candidate of candidates) {
+      candidate.parts = {
+        y: candidate.date.getFullYear(),
+        m: candidate.date.getMonth() + 1,
+        d: candidate.date.getDate(),
+      };
+    }
     for (const candidate of candidates) {
       try {
-        const y = candidate.getFullYear();
-        const m = candidate.getMonth() + 1;
-        const d = candidate.getDate();
+        const y = candidate.parts.y;
+        const m = candidate.parts.m;
+        const d = candidate.parts.d;
         const res = await fetchUpstream(`${BANIDB_BASE}/hukamnamas/${y}/${m}/${d}`, {
           next: { revalidate: 21600 },
         });
@@ -683,13 +772,21 @@ export async function getHukamnama(): Promise<HukamnamaInfo | null> {
         if (!shabad) continue;
         const info = shabad.shabadInfo ?? {};
         const ang = info.pageNo ?? MIN_ANG;
+        // Probe both tracks in parallel; either may be unpublished this early.
+        const datedAudio = sgpcAudioUrlsForDate(candidate.parts);
+        const [audio, katha] = await Promise.all([
+          verifySgpcAudioUrl(datedAudio.audio),
+          verifySgpcAudioUrl(datedAudio.katha),
+        ]);
         return {
-          dateLabel: formatDateLabel(candidate),
+          dateLabel: formatDateLabel(candidate.date),
           ang,
           raag: info.raag?.english ?? undefined,
           writer: info.writer?.english ?? undefined,
           lines: (shabad.verses ?? []).map((raw, i) => mapVerse(raw, ang, i)),
           sgpcImage: undefined,
+          sgpcAudio: audio,
+          sgpcKathaAudio: katha,
           sgpcPage: SGPC_HUKAMNAMA_URL,
           sourceNote: "Daily Hukamnama — Sri Darbar Sahib, Amritsar (via SGPC)",
         };

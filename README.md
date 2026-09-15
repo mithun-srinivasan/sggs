@@ -83,13 +83,17 @@ embedded JSON (`#hukamnamaPdfData`: date, Ang, Gurmukhi, Punjabi, English)
 plus audio. The app parses that page as the single source of truth; BaniDB
 only enriches the verses when it carries the same Ang, and a BaniDB-only
 today/yesterday fallback covers the pre-dawn gap or an SGPC outage.
+Audio never depends on markup alone: the `<audio>` tags are parsed
+tolerantly, with date-derived filenames (`SGPCNET{DDMMYY}.mp3` /
+`katha{DDMMYY}.mp3`) as fallback — HEAD-verified on the BaniDB path — so
+the players survive SGPC markup changes and page outages.
 
 ```mermaid
 flowchart TD
     SGPC["Fetch hs.sgpc.net<br/>browser headers, 6h cache"] --> PARSE{"Embedded JSON + audio parsed?"}
     PARSE -- Yes --> ENRICH["Optional BaniDB enrich<br/>same Ang? use richer verses"]
     ENRICH --> SHOW["Show Hukamnama<br/>text + audio, labelled with SGPC date"]
-    PARSE -- No --> TRY["Try BaniDB hukamnamas YYYY/M/D"]
+    PARSE -- No --> TRY["Try BaniDB hukamnamas YYYY/M/D<br/>+ verify date-derived SGPC audio"]
     TRY --> OK{"HTTP 200 with shabads?"}
     OK -- Yes --> SHOW
     OK -- No --> YEST["Try yesterday's date"]
