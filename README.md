@@ -12,7 +12,7 @@ plus the five daily Nitnem Banis, genuine translations in four languages, real
 teekas with correct attribution, word-by-word meanings, a daily Hukamnama from
 SGPC, reading plans and streaks, and offline PWA support.
 
-**Live:** `https://srigurugranthsahib.vercel.app/`
+**Live:** https://srigurugranthsahib.vercel.app/
 
 ## Contents
 
