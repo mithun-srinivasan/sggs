@@ -4,7 +4,7 @@
 [![React](https://img.shields.io/badge/React-19-61dafb)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6)](https://www.typescriptlang.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-38bdf8)](https://tailwindcss.com/)
-[![Tests](https://img.shields.io/badge/Playwright-28_tests-brightgreen)](https://playwright.dev/)
+[![Tests](https://img.shields.io/badge/Playwright-29_tests-brightgreen)](https://playwright.dev/)
 [![License](https://img.shields.io/badge/License-MIT-amber)](./LICENSE)
 
 A focused, verse-by-verse web reader for Sri Guru Granth Sahib Ji — all 1,430 Angs
@@ -302,7 +302,7 @@ scripts/
 tests/
   ang-navigation.spec.ts · commentary.spec.ts · learn-gurpurab.spec.ts
   new-features.spec.ts · more-features.spec.ts · sgpc-calendar.spec.ts
-  ang-range.spec.ts   Playwright suite (28 tests)
+  ang-range.spec.ts · ang-advance.spec.ts   Playwright suite (29 tests)
 .github/workflows/ci.yml        CI: typecheck + lint + validate:sgpc + Playwright
 eslint.config.mjs · next.config.ts · next-env.d.ts
 ```

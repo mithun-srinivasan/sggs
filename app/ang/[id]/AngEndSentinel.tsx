@@ -14,6 +14,11 @@
  *          the component auto-navigates to the next Ang with a cross-fade.
  *   2. **Last Ang (1430)** — a quiet "Completed Sri Guru Granth Sahib Ji"
  *      message is displayed — no auto-advance or button.
+ *
+ * To keep the advance instant, the next Ang's route payload is prefetched as
+ * soon as the sentinel mounts (see the prefetch effect) — the advance fires
+ * `router.push` the moment the sentinel is half-visible, so a cold RSC cache
+ * would stall the transition exactly when the reader's patience is thinnest.
  */
 
 "use client";
@@ -79,6 +84,17 @@ export default function AngEndSentinel({
     window.dispatchEvent(new CustomEvent("crossfade-start"));
     router.push(`/ang/${nextAng}`);
   }, [angNumber, nextAng, isLastAng, onEndReached, router, triggered]);
+
+  // -- Advance-time prefetch ---------------------------------------------------
+  // Warm the next Ang's route payload while the user is still reading.
+  // BottomNav's `<Link prefetch>` cannot cover this: the bar is translated
+  // off-screen during downward scroll, so its links never intersect the
+  // viewport and Next.js never prefetches them — leaving this `router.push`
+  // to pay the full fetch the instant the sentinel fires.
+
+  useEffect(() => {
+    if (!isLastAng) router.prefetch(`/ang/${nextAng}`);
+  }, [isLastAng, nextAng, router]);
 
   // -- IntersectionObserver auto-advance -------------------------------------
 
