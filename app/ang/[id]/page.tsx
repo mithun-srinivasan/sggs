@@ -7,7 +7,15 @@
  * Next.js to pre-render all 1430 Angs at build time by calling `getAng()`
  * (which in turn fetches from BaniDB and caches the result forever).
  *
- * At runtime, each page is a pure static HTML file — no server calls.
+ * `revalidate` (ISR, daily) is load-bearing resilience, not freshness —
+ * scripture never changes, but a single transient BaniDB failure at build
+ * time once baked a permanent 404 for `/ang/1430` (print/1430 built fine
+ * from its own fetch seconds apart). Daily background regeneration means a
+ * page stranded that way heals itself instead of waiting for a redeploy.
+ * The build itself is unaffected: all pages are still pre-rendered up front.
+ *
+ * Invalid numbers render `not-found.tsx`; a valid number whose scripture fails
+ * to load renders `AngUnavailable` (retry card) instead of the 404.
  *
  * Layout:
  *   - `NavigationBar` (fixed top, scroll-aware auto-hide)
@@ -21,17 +29,23 @@
 
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { getAng, clampAng } from "@/lib/data";
+import { getAng } from "@/lib/data";
 import { MAX_ANG, MIN_ANG } from "@/lib/types";
 import NavigationBar from "@/components/NavigationBar";
 import SwipeContainer from "@/components/SwipeContainer";
 import BottomNav from "./BottomNav";
 import AngStartSentinel from "./AngStartSentinel";
+import AngUnavailable from "./AngUnavailable";
 import ClientAngReader from "./ClientAngReader";
 
 interface PageProps {
   params: Promise<{ id: string }>;
 }
+
+/** Daily background regeneration — self-heals pages stranded by a transient
+ *  build-time upstream failure (see header). Users always get instant cached
+ *  pages; regeneration never blocks a visit. */
+export const revalidate = 86400;
 
 /**
  * Generates static parameters for all 1430 valid Angs.
@@ -49,7 +63,13 @@ export function generateStaticParams() {
  */
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
-  const angNumber = clampAng(parseInt(id, 10));
+  const parsed = parseInt(id, 10);
+  // Never clamp here: an invalid id renders the 404, so its metadata must
+  // not masquerade as a neighbouring valid Ang.
+  if (Number.isNaN(parsed) || parsed < MIN_ANG || parsed > MAX_ANG) {
+    return { title: "Ang not found | Sri Guru Granth Sahib Ji" };
+  }
+  const angNumber = parsed;
   const ang = await getAng(angNumber);
 
   return {
@@ -69,7 +89,20 @@ export default async function AngPage({ params }: PageProps) {
 
   const angNumber = parsed;
   const ang = await getAng(angNumber);
-  if (!ang) notFound(); // API returned nothing — treat as unavailable
+  // The number is valid but the scripture failed to load (offline / API
+  // down) — show the retry card, NOT the "out of range" 404 (that message is
+  // reserved for genuinely invalid numbers handled above).
+  if (!ang) {
+    return (
+      <div className="min-h-screen bg-[var(--bg)] text-[var(--text)] transition-colors icon-border">
+        <NavigationBar angNumber={angNumber} />
+        <main className="mx-auto max-w-3xl px-5 pt-20 pb-28 sm:px-8 sm:pt-24">
+          <AngUnavailable angNumber={angNumber} />
+        </main>
+        <BottomNav angNumber={angNumber} maxAng={MAX_ANG} minAng={MIN_ANG} />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[var(--bg)] text-[var(--text)] transition-colors icon-border">

@@ -5,7 +5,10 @@
  *
  * Features:
  *   - Home link, Previous / Next Ang buttons
- *   - Inline Ang number input (with clamping and form submission)
+ *   - Inline Ang number input (with clamping and form submission; the form
+ *     carries `noValidate` so the browser's native min/max check can never
+ *     swallow an out-of-range entry — every submit reaches `clampAng` and
+ *     lands on a valid Ang instead of doing nothing)
  *   - Fullscreen toggle, Search link, Bookmarks link, Settings toggle
  *   - Scroll-aware auto-hide: hides as the user scrolls down to read,
  *     reappears immediately on upward scroll (or when controls are open)
@@ -282,8 +285,13 @@ export default function NavigationBar({ angNumber }: { angNumber: number }) {
           </button>
         </div>
 
-        {/* Center: inline Ang number input */}
-        <form onSubmit={handleGoSubmit} className="flex items-center gap-1.5">
+        {/* Center: inline Ang number input.
+            `noValidate` is load-bearing: without it the browser blocks submit
+            for out-of-range values (and the clamp below never runs), leaving
+            the user staring at a dead input. With it, every Enter reaches
+            `handleGoSubmit` → `clampAng` → a valid Ang page. `min`/`max` stay
+            so mobile keyboards and the stepper keep the 1–1430 range. */}
+        <form onSubmit={handleGoSubmit} noValidate className="flex items-center gap-1.5">
           <span className="text-xs font-medium text-[var(--text-muted)]">Ang</span>
           <input
             type="number"

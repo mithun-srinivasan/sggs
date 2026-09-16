@@ -14,17 +14,27 @@
  * The browser's native print dialog (→ Save as PDF) is triggered from the
  * header; the `print:` CSS in `globals.css` strips all chrome and the screen
  * header for a clean printed page.
+ *
+ * `revalidate` (ISR, daily) mirrors the reader page: a transient build-time
+ * BaniDB failure must strand a page for at most a day, never until the next
+ * redeploy. All pages are still pre-rendered up front, so the build is
+ * unaffected.
  */
 
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { getAng, clampAng } from "@/lib/data";
+import { getAng } from "@/lib/data";
 import { MIN_ANG, MAX_ANG } from "@/lib/types";
 import PrintAng from "./PrintAng";
+import AngUnavailable from "../AngUnavailable";
 
 interface PageProps {
   params: Promise<{ id: string }>;
 }
+
+/** Daily background regeneration — self-heals pages stranded by a transient
+ *  build-time upstream failure (see header). */
+export const revalidate = 86400;
 
 export function generateStaticParams() {
   return Array.from({ length: MAX_ANG - MIN_ANG + 1 }, (_, i) => ({
@@ -34,7 +44,17 @@ export function generateStaticParams() {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
-  const angNumber = clampAng(parseInt(id, 10));
+  const parsed = parseInt(id, 10);
+  // Never clamp here: an invalid id renders the 404, so its metadata must
+  // not masquerade as a neighbouring valid Ang.
+  if (Number.isNaN(parsed) || parsed < MIN_ANG || parsed > MAX_ANG) {
+    return {
+      title: "Ang not found | Sri Guru Granth Sahib Ji",
+      description: `That Ang number is out of range. Sri Guru Granth Sahib Ji spans Ang ${MIN_ANG} to ${MAX_ANG}.`,
+      robots: { index: false },
+    };
+  }
+  const angNumber = parsed;
   return {
     title: `Print Ang ${angNumber} | Sri Guru Granth Sahib Ji`,
     description: `Print-ready view of Ang ${angNumber} of Sri Guru Granth Sahib Ji.`,
@@ -49,7 +69,17 @@ export default async function PrintAngPage({ params }: PageProps) {
 
   const angNumber = parsed;
   const ang = await getAng(angNumber);
-  if (!ang) notFound();
+  // Valid number but the scripture failed to load (offline / API down) —
+  // show the retry card, not the "out of range" 404.
+  if (!ang) {
+    return (
+      <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
+        <main className="mx-auto max-w-3xl px-6 py-8 sm:py-10">
+          <AngUnavailable angNumber={angNumber} />
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
