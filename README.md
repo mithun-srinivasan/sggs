@@ -38,10 +38,10 @@ at runtime.
 ```mermaid
 flowchart TD
     subgraph BUILD["Build time — npm run build"]
-        GEN["generateStaticParams<br/>1430 Angs + 5 banis (print pages are on-demand ISR)"]
+        GEN["generateStaticParams<br/>51-Ang hot set + 5 banis (rest is on-demand ISR)"]
         FETCH["fetchUpstream — BaniDB API<br/>20s timeout + 2 retries"]
         MAP["mapVerse — normalize to VerseLine"]
-        HTML["≈1,435 static pages + on-demand print ISR"]
+        HTML["68 static pages + on-demand Ang/print ISR"]
         GEN --> FETCH --> MAP --> HTML
     end
     subgraph RUNTIME["Runtime — browser + Vercel"]
@@ -223,7 +223,7 @@ npm install
 npm run dev        # http://localhost:3000
 ```
 
-Production build (pre-renders ≈1,435 static pages; print pages render on-demand via ISR — takes a couple of minutes):
+Production build (pre-renders a 68-page hot set; all other Angs and print pages render on-demand via ISR — under half a minute):
 
 ```bash
 npm run build
@@ -253,7 +253,7 @@ app/
   actions.ts                     Server action: getTodaysHukamnama
   globals.css                    Theme tokens, focus/print CSS
   ang/[id]/
-    page.tsx                     Ang reader + static route generation
+    page.tsx                     Ang reader + hot-set route generation (rest on-demand ISR)
     actions.ts                   Server action: getAngForReader (continuous mode)
     ClientAngReader.tsx          Chains Angs for continuous mode
     AngStartSentinel.tsx / AngEndSentinel.tsx   Scroll-edge navigation
@@ -382,8 +382,8 @@ terms before deploying publicly.
   export all five slices to one JSON file, and restore it after clearing
   browser data.
 - Search depends on the BaniDB service and network availability.
-- Ang/bani data is fetched once at build time — a rebuild picks up any
-  upstream corrections.
+- Hot-set Ang/bani data is fetched at build time and refreshed weekly —
+  a rebuild picks up any upstream corrections immediately.
 - Lunar-origin Gurpurabs move every Gregorian year, so each new Nanakshahi
   year needs its own `public/data/sgpc-<year>.json` (see above).
 

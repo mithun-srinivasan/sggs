@@ -3,11 +3,11 @@
  * ---------------------------------------------------------------------------
  * A print-optimised view of a whole Ang (feature 15: Print / PDF).
  *
- * Rendered on-demand with ISR (`revalidate`, daily) instead of full SSG:
+ * Rendered on-demand with ISR (`revalidate`, weekly) instead of full SSG:
  * pre-rendering all 1430 print pages doubled deployment output (~370 MB per
  * deployment) and blew past Vercel's 10 GB Hobby Deployment Storage limit,
  * while these pages are `noindex`, secondary traffic, and identical in data
- * to the already-static reader page. Each print layout mirrors the reader's
+ * to the hot-set reader page. Each print layout mirrors the reader's
  * verse order:
  *   Gurmukhi          (always, large & solid — the scripture itself)
  *   Transliteration   (Latin script)
@@ -19,8 +19,9 @@
  * header; the `print:` CSS in `globals.css` strips all chrome and the screen
  * header for a clean printed page.
  *
- * `revalidate` (ISR, daily) mirrors the reader page: a transient BaniDB
- * failure strands a page for at most a day, never until the next redeploy.
+ * `revalidate` (ISR, weekly) mirrors the reader page: a transient BaniDB
+ * failure strands a page for at most a week, never until the next redeploy.
+ * Scripture is immutable, so a long window keeps CDN churn near zero.
  * First visit renders live from BaniDB, then serves cached.
  */
 
@@ -35,12 +36,21 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-/** Daily background regeneration — self-heals pages stranded by a transient
+/** Weekly background regeneration — self-heals pages stranded by a transient
  *  upstream failure (see header). First visit renders on demand, then caches. */
-export const revalidate = 86400;
+export const revalidate = 604800;
 
 /** Allow any Ang id to render on demand — print pages are ISR, not pre-rendered. */
 export const dynamicParams = true;
+
+/**
+ * Pre-renders zero print pages: they are `noindex`, rarely visited, and
+ * share the reader's data, so baking any of them into the deployment is
+ * pure storage cost. Every id builds on demand via `dynamicParams` above.
+ */
+export function generateStaticParams() {
+  return [];
+}
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;

@@ -5,7 +5,7 @@
  * v2 API and maps its response into the application's clean types.
  *
  * Two public functions are exported:
- *   - getAng(angNumber)    → one Ang of scripture (SSG, cached forever)
+ *   - getAng(angNumber)    → one Ang of scripture (hot-set SSG + on-demand ISR)
  *   - searchGurbani(term)  → up to 40 matching verses (dynamic, uncached)
  *   - clampAng(n)          → normalises any number into the valid 1–1430 range
  *
@@ -24,8 +24,9 @@ const BANIDB_BASE = "https://api.banidb.com/v2";
 /**
  * Per-attempt network timeout (ms) for upstream API calls.
  *
- * Build-time static generation pre-renders 1430 Ang pages (print pages are
- * on-demand ISR to halve deployment output), each fetching BaniDB
+ * Build-time static generation pre-renders a ~51-Ang hot set plus the five
+ * Nitnem banis (all other Angs and all print pages are on-demand ISR),
+ * each fetching BaniDB
  * live.  A single stalled response with no timeout hangs a build worker past
  * Next.js's per-page static-generation budget (60s default) and fails the
  * entire Vercel build — so every upstream fetch must be strictly bounded.
@@ -336,9 +337,9 @@ function mapVerse(raw: BaniDbVerseRaw, angNumber: number, index: number): VerseL
 /**
  * Fetches one Ang from BaniDB.
  *
- * This runs at BUILD TIME for all 1430 Angs via `generateStaticParams` in
- * `app/ang/[id]/page.tsx`, plus on-demand for ISR print pages in
- * `app/ang/[id]/print/page.tsx` (cached daily). The result is fully static;
+ * This runs at BUILD TIME for the hot set in `app/ang/[id]/page.tsx`, plus
+ * on-demand for all other Angs and ISR print pages in
+ * `app/ang/[id]/print/page.tsx` (cached weekly). The result is fully static;
  * scripture text never changes.
  * Wrapped in React's `cache()` so a single route (page body + metadata) only
  * ever performs one network fetch.

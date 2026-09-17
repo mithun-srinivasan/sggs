@@ -3,16 +3,19 @@
  * ---------------------------------------------------------------------------
  * The main Ang reader page — the heart of the application.
  *
- * This is a **statically generated** page: `generateStaticParams` tells
- * Next.js to pre-render all 1430 Angs at build time by calling `getAng()`
- * (which in turn fetches from BaniDB and caches the result forever).
+ * Rendered with ISR over a small pre-rendered hot set: `generateStaticParams`
+ * covers only the Angs linked from high-traffic entry points (Japji Sahib
+ * 1–8 on the home page, the Raag-section grid, featured sacred verses,
+ * quick-jump markers, and Gurpurab calendar targets). Every other Ang
+ * generates on first request (`dynamicParams`) and is then cached.
+ * Pre-rendering all 1430 Angs ballooned every deployment past Vercel's 10 GB
+ * Hobby Deployment Storage limit, while scripture never changes — so baking
+ * rarely-visited Angs into each build bought nothing.
  *
- * `revalidate` (ISR, daily) is load-bearing resilience, not freshness —
- * scripture never changes, but a single transient BaniDB failure at build
- * time once baked a permanent 404 for `/ang/1430` (print/1430 built fine
- * from its own fetch seconds apart). Daily background regeneration means a
+ * `revalidate` (ISR, weekly) is load-bearing resilience, not freshness —
+ * scripture never changes, but a single transient BaniDB failure once baked
+ * a permanent 404 for `/ang/1430`. Weekly background regeneration means a
  * page stranded that way heals itself instead of waiting for a redeploy.
- * The build itself is unaffected: all pages are still pre-rendered up front.
  *
  * Invalid numbers render `not-found.tsx`; a valid number whose scripture fails
  * to load renders `AngUnavailable` (retry card) instead of the 404.
@@ -42,19 +45,30 @@ interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-/** Daily background regeneration — self-heals pages stranded by a transient
- *  build-time upstream failure (see header). Users always get instant cached
- *  pages; regeneration never blocks a visit. */
-export const revalidate = 86400;
+/** Weekly background regeneration — self-heals pages stranded by a transient
+ *  upstream failure (see header). Scripture is immutable, so a long window
+ *  keeps CDN churn near zero; users always get instant cached pages and
+ *  regeneration never blocks a visit. */
+export const revalidate = 604800;
+
+/** Unlisted Angs render on first request instead of 404ing — the ISR path
+ *  that keeps 1379 rarely-visited Angs out of every deployment. */
+export const dynamicParams = true;
 
 /**
- * Generates static parameters for all 1430 valid Angs.
- * Next.js calls this once at build time to pre-render every Ang page.
+ * Pre-renders only the hot set: Japji Sahib (Angs 1–8) plus every Ang linked
+ * from the home page (Raag-section grid, featured sacred verses, quick-jump
+ * markers) and the Gurpurab calendar. Everything else builds on demand via
+ * `dynamicParams` above.
  */
 export function generateStaticParams() {
-  return Array.from({ length: MAX_ANG - MIN_ANG + 1 }, (_, i) => ({
-    id: String(i + MIN_ANG),
-  }));
+  const HOT_ANGS = [
+    1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 94, 139, 151, 217, 262, 347, 462,
+    489, 527, 537, 595, 611, 631, 660, 705, 711, 719, 721, 728, 773, 795,
+    859, 885, 917, 975, 984, 989, 1107, 1118, 1125, 1168, 1197, 1254, 1294,
+    1319, 1327, 1352, 1353, 1374, 1430,
+  ];
+  return HOT_ANGS.map((n) => ({ id: String(n) }));
 }
 
 /**
