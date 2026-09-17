@@ -38,10 +38,10 @@ at runtime.
 ```mermaid
 flowchart TD
     subgraph BUILD["Build time — npm run build"]
-        GEN["generateStaticParams<br/>1430 Angs + 1430 print pages + 5 banis"]
+        GEN["generateStaticParams<br/>1430 Angs + 5 banis (print pages are on-demand ISR)"]
         FETCH["fetchUpstream — BaniDB API<br/>20s timeout + 2 retries"]
         MAP["mapVerse — normalize to VerseLine"]
-        HTML["≈2,880 static HTML pages"]
+        HTML["≈1,435 static pages + on-demand print ISR"]
         GEN --> FETCH --> MAP --> HTML
     end
     subgraph RUNTIME["Runtime — browser + Vercel"]
@@ -223,7 +223,7 @@ npm install
 npm run dev        # http://localhost:3000
 ```
 
-Production build (pre-renders ≈2,880 static pages — takes a few minutes):
+Production build (pre-renders ≈1,435 static pages; print pages render on-demand via ISR — takes a couple of minutes):
 
 ```bash
 npm run build
@@ -259,7 +259,7 @@ app/
     AngStartSentinel.tsx / AngEndSentinel.tsx   Scroll-edge navigation
     BottomNav.tsx                Scroll-aware bottom navigation
     not-found.tsx                Custom 404 for out-of-range Angs
-    print/page.tsx               Print / PDF layout · PrintAng.tsx controls
+    print/page.tsx               Print / PDF layout (on-demand ISR, not pre-rendered) · PrintAng.tsx controls
   nitnem/page.tsx                Nitnem index (five daily prayers)
   nitnem/[token]/page.tsx        Bani reader (statically generated ×5)
   bookmarks/page.tsx             Saved verses: tags, print, import/export, full backup

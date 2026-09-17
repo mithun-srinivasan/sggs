@@ -24,7 +24,8 @@ const BANIDB_BASE = "https://api.banidb.com/v2";
 /**
  * Per-attempt network timeout (ms) for upstream API calls.
  *
- * Build-time static generation pre-renders 2870 pages, each fetching BaniDB
+ * Build-time static generation pre-renders 1430 Ang pages (print pages are
+ * on-demand ISR to halve deployment output), each fetching BaniDB
  * live.  A single stalled response with no timeout hangs a build worker past
  * Next.js's per-page static-generation budget (60s default) and fails the
  * entire Vercel build — so every upstream fetch must be strictly bounded.
@@ -336,8 +337,9 @@ function mapVerse(raw: BaniDbVerseRaw, angNumber: number, index: number): VerseL
  * Fetches one Ang from BaniDB.
  *
  * This runs at BUILD TIME for all 1430 Angs via `generateStaticParams` in
- * `app/ang/[id]/page.tsx`, so it is *not* called per-request in production.
- * The result is fully static; scripture text never changes.
+ * `app/ang/[id]/page.tsx`, plus on-demand for ISR print pages in
+ * `app/ang/[id]/print/page.tsx` (cached daily). The result is fully static;
+ * scripture text never changes.
  * Wrapped in React's `cache()` so a single route (page body + metadata) only
  * ever performs one network fetch.
  *

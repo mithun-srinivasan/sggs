@@ -8,10 +8,11 @@
  * for all 1430 Ang routes.  No additional options are needed for the
  * prototype; add them here as the project grows (images config, headers, etc.).
  *
- * `staticPageGenerationTimeout` is raised because each of the 2870 static
- * pages fetches BaniDB live at build time; on a single-worker builder (e.g.
- * Vercel) one slow upstream response must not kill the whole build.  Upstream
- * fetches themselves are hard-bounded with timeouts + retries in lib/data.ts.
+ * `staticPageGenerationTimeout` is raised because each of the 1430 static
+ * Ang pages fetches BaniDB live at build time; on a single-worker builder (e.g.
+ * Vercel) one slow upstream response must not kill the whole build. Print
+ * pages are on-demand ISR (not pre-rendered) to halve deployment output.
+ * Upstream fetches themselves are hard-bounded with timeouts + retries in lib/data.ts.
  */
 
 import type { NextConfig } from "next";

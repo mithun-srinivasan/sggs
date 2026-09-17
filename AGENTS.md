@@ -116,10 +116,12 @@ it*. Follow all ten rules on every change.
   `fetchPriority="high"` — do not revert to lazy. Prefer AVIF/WebP at ≤85
   quality if replacing the asset (Next allows 75 by default — keep custom
   qualities out of the config unless the asset truly needs them).
-- Build pre-renders ~2,880 static pages with live BaniDB fetches: keep
-  `fetchUpstream` timeouts/retries bounded and `staticPageGenerationTimeout`
-  at 120 s. If the build gets slower, move `print/` pages to ISR before
-  touching Ang SSG.
+- Build pre-renders ~1,435 static pages (1430 Angs + 5 banis; print pages
+  are on-demand ISR to halve deployment output) with live BaniDB fetches:
+  keep `fetchUpstream` timeouts/retries bounded and
+  `staticPageGenerationTimeout` at 120 s. Print ISR is the storage fix —
+  do not re-add `generateStaticParams` to `print/` without checking Vercel
+  Deployment Storage.
 - New images: `next/image` with `sizes`; new audio: `preload="none"`.
 - Share-card canvas (`VerseCard`): must fit any verse length — word-wrap
   every block, auto-fit fonts roomy-first, ellipsis only as a last resort.

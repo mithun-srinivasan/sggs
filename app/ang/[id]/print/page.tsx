@@ -1,10 +1,14 @@
 /**
  * app/ang/[id]/print/page.tsx
  * ---------------------------------------------------------------------------
- * A static, print-optimised view of a whole Ang (feature 15: Print / PDF).
+ * A print-optimised view of a whole Ang (feature 15: Print / PDF).
  *
- * Statically generated for every Ang via `generateStaticParams`, each print
- * layout mirrors the reader's verse order:
+ * Rendered on-demand with ISR (`revalidate`, daily) instead of full SSG:
+ * pre-rendering all 1430 print pages doubled deployment output (~370 MB per
+ * deployment) and blew past Vercel's 10 GB Hobby Deployment Storage limit,
+ * while these pages are `noindex`, secondary traffic, and identical in data
+ * to the already-static reader page. Each print layout mirrors the reader's
+ * verse order:
  *   Gurmukhi          (always, large & solid — the scripture itself)
  *   Transliteration   (Latin script)
  *   English translation
@@ -15,10 +19,9 @@
  * header; the `print:` CSS in `globals.css` strips all chrome and the screen
  * header for a clean printed page.
  *
- * `revalidate` (ISR, daily) mirrors the reader page: a transient build-time
- * BaniDB failure must strand a page for at most a day, never until the next
- * redeploy. All pages are still pre-rendered up front, so the build is
- * unaffected.
+ * `revalidate` (ISR, daily) mirrors the reader page: a transient BaniDB
+ * failure strands a page for at most a day, never until the next redeploy.
+ * First visit renders live from BaniDB, then serves cached.
  */
 
 import { notFound } from "next/navigation";
@@ -33,14 +36,11 @@ interface PageProps {
 }
 
 /** Daily background regeneration — self-heals pages stranded by a transient
- *  build-time upstream failure (see header). */
+ *  upstream failure (see header). First visit renders on demand, then caches. */
 export const revalidate = 86400;
 
-export function generateStaticParams() {
-  return Array.from({ length: MAX_ANG - MIN_ANG + 1 }, (_, i) => ({
-    id: String(i + MIN_ANG),
-  }));
-}
+/** Allow any Ang id to render on demand — print pages are ISR, not pre-rendered. */
+export const dynamicParams = true;
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
