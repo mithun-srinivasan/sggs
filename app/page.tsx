@@ -523,6 +523,7 @@ export default function HomePage() {
                       const val = parseInt(e.target.value, 10);
                       if (!isNaN(val)) setTargetAng(Math.min(MAX_ANG, Math.max(MIN_ANG, val)));
                     }}
+                    inputMode="numeric"
                     className="h-10 w-20 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-center text-sm font-bold text-[var(--text)] outline-none focus:border-[var(--accent)]"
                   />
                 </div>

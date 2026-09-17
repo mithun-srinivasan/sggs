@@ -300,6 +300,7 @@ export default function NavigationBar({ angNumber }: { angNumber: number }) {
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onBlur={() => setInputValue(String(angNumber))} // reset on blur to prevent drift
+            inputMode="numeric"
             className="h-9 w-14 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-center text-xs font-semibold text-[var(--text)] outline-none focus:border-[var(--accent)]"
             aria-label="Go to Ang number"
           />
