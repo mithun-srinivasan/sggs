@@ -246,66 +246,106 @@ npm run start
 ## Project structure
 
 ```text
-app/
-  layout.tsx                     Root layout, fonts, metadata, providers
-  page.tsx                       Home page
-  manifest.ts                    PWA web-app manifest
-  actions.ts                     Server action: getTodaysHukamnama
-  globals.css                    Theme tokens, focus/print CSS
-  ang/[id]/
-    page.tsx                     Ang reader + hot-set route generation (rest on-demand ISR)
-    actions.ts                   Server action: getAngForReader (continuous mode)
-    ClientAngReader.tsx          Chains Angs for continuous mode
-    AngStartSentinel.tsx / AngEndSentinel.tsx   Scroll-edge navigation
-    BottomNav.tsx                Scroll-aware bottom navigation
-    not-found.tsx                Custom 404 for out-of-range Angs
-    print/page.tsx               Print / PDF layout (on-demand ISR, not pre-rendered) · PrintAng.tsx controls
-  nitnem/page.tsx                Nitnem index (five daily prayers)
-  nitnem/[token]/page.tsx        Bani reader (statically generated ×5)
-  bookmarks/page.tsx             Saved verses: tags, print, import/export, full backup
-  learn/page.tsx                 Gurmukhi chart + practice quiz
-  search/page.tsx + actions.ts   Gurbani search (Gurmukhi/Roman/English) + action
-  calendar/page.tsx              Nanakshahi month grid + Gurpurab links (←/→ keys, auto-update)
-components/
-  NavigationBar.tsx              Top bar (scroll-aware + hover edge-peek on every Ang)
-  ReaderControls.tsx             Settings panel (display, modes, languages)
-  ReaderPrefsProvider.tsx        Preferences context (localStorage)
-  BookmarksProvider.tsx          Bookmarks + tags (localStorage)
-  ProgressProvider.tsx           Progress, streaks, history, plans, goals
-  NotesProvider.tsx / HighlightsProvider.tsx   Notes + colours (localStorage)
-  VerseCard.tsx                  One verse: layers + actions
-  HukamnamaCard.tsx              Daily Hukamnama (hs.sgpc.net text + audio, BaniDB enrich)
-  ShabadOfDayCard.tsx            Random daily shabad (date-keyed cache)
-  ReadingHeatmap.tsx             20-week activity grid from visit history
-  NitnemCard.tsx                 Home-page daily-prayers card
-  ReadingJourney.tsx             Progress/streak/plan/goal card
-  GurpurabCalendar.tsx           Upcoming Gurpurabs card (year-aware + Full-calendar button)
-  OfflineIndicator.tsx           Offline banner · ServiceWorkerRegistrar.tsx
-  SwipeContainer.tsx · PageTransition.tsx · ShortcutHelp.tsx · SikhSymbols.tsx
-lib/
-  data.ts                        BaniDB fetching (timeout+retry), mapping,
-                                  search, Hukamnama (hs.sgpc.net forever), banis
-  types.ts                       Shared types (VerseLine, Bani, prefs, …)
-  nitnem.ts                      Nitnem metadata table (client-safe)
-  nanakshahi.ts                  Nanakshahi months, conversion, Sangrand (SGPC 558)
-  gurpurabs.ts                   SGPC Samvat 558 Gurpurab → Ang table
-  sgpc.ts                        Year-aware SGPC loader (bundled → JSON + cache)
-  backup.ts                      Full local-data backup/restore (5 slices, one file)
-  gurmukhi.ts                    Akhar + lagan-matra data for Learn page
-  shortcuts.ts · downloadAng.ts · useSwipeNavigation.ts
-public/
-  sw.js                          Service worker (v3 offline caching, incl. /data JSON)
-  data/sgpc-558.json             SGPC Samvat 558 months + Gurpurabs (add sgpc-559.json for next year)
-  icon-192.png · icon-512.png · golden-temple-night.png
-scripts/
-  validate-sgpc.mjs              CI/local validator for public/data/sgpc-*.json
-tests/
-  ang-navigation.spec.ts · commentary.spec.ts · learn-gurpurab.spec.ts
-  new-features.spec.ts · more-features.spec.ts · sgpc-calendar.spec.ts
-  ang-range.spec.ts · ang-advance.spec.ts   Playwright suite (29 tests)
-.github/workflows/ci.yml        CI: typecheck + lint + validate:sgpc + Playwright
-eslint.config.mjs · next.config.ts · next-env.d.ts
+sggs-reader/
+├── app/                            # Routes (Next.js App Router)
+│   ├── layout.tsx                  # Root layout, fonts, metadata, providers
+│   ├── page.tsx                    # Home page
+│   ├── globals.css                 # Theme tokens, focus/print CSS
+│   ├── manifest.ts                 # PWA web-app manifest
+│   ├── actions.ts                  # Server action: getTodaysHukamnama
+│   ├── icon.svg / favicon.ico / apple-icon.png
+│   │                               # App icons
+│   ├── ang/[id]/
+│   │   ├── page.tsx                # Ang reader + hot-set generation (rest on-demand ISR)
+│   │   ├── actions.ts              # Server action: getAngForReader (continuous mode)
+│   │   ├── ClientAngReader.tsx     # Chains Angs for continuous mode
+│   │   ├── AngStartSentinel.tsx    # Scroll-edge navigation (top)
+│   │   ├── AngEndSentinel.tsx      # Scroll-edge navigation (bottom)
+│   │   ├── AngUnavailable.tsx      # Error card when an Ang fails to load
+│   │   ├── BottomNav.tsx           # Scroll-aware bottom navigation
+│   │   ├── not-found.tsx           # Custom 404 for out-of-range Angs
+│   │   └── print/
+│   │       ├── page.tsx            # Print / PDF layout (on-demand ISR)
+│   │       └── PrintAng.tsx        # Print controls + formatting
+│   ├── nitnem/
+│   │   ├── page.tsx                # Nitnem index (five daily prayers)
+│   │   └── [token]/page.tsx        # Bani reader (statically generated ×5)
+│   ├── bookmarks/page.tsx          # Saved verses: tags, print, import/export, backup
+│   ├── calendar/page.tsx           # Nanakshahi month grid + Gurpurab links
+│   ├── learn/page.tsx              # Gurmukhi chart + practice quiz
+│   └── search/
+│       ├── page.tsx                # Search UI (Gurmukhi / Roman / English)
+│       └── actions.ts              # Search server action (live BaniDB)
+├── components/                     # UI building blocks
+│   ├── NavigationBar.tsx           # Top bar (scroll-aware + hover edge-peek)
+│   ├── ReaderControls.tsx          # Settings panel (display, modes, languages)
+│   ├── ReaderPrefsProvider.tsx     # Preferences context (localStorage)
+│   ├── BookmarksProvider.tsx       # Bookmarks + tags (localStorage)
+│   ├── ProgressProvider.tsx        # Progress, streaks, history, plans, goals
+│   ├── NotesProvider.tsx           # Verse notes (localStorage)
+│   ├── HighlightsProvider.tsx      # 4-colour highlights (localStorage)
+│   ├── VerseCard.tsx               # One verse: text layers + actions
+│   ├── HukamnamaCard.tsx           # Daily Hukamnama (hs.sgpc.net + BaniDB enrich)
+│   ├── ShabadOfDayCard.tsx         # Random daily shabad (date-keyed cache)
+│   ├── ReadingHeatmap.tsx          # 20-week activity grid from visit history
+│   ├── ReadingJourney.tsx          # Progress / streak / plan / goal card
+│   ├── GurpurabCalendar.tsx        # Upcoming Gurpurabs card + full-calendar link
+│   ├── NitnemCard.tsx              # Home-page daily-prayers card
+│   ├── OfflineIndicator.tsx        # Offline banner
+│   ├── ServiceWorkerRegistrar.tsx  # Registers /sw.js in production
+│   ├── SwipeContainer.tsx          # Touch-swipe navigation wrapper
+│   ├── PageTransition.tsx          # Route-change transition
+│   ├── ShortcutHelp.tsx            # `?` keyboard-shortcut modal
+│   └── SikhSymbols.tsx             # Shared SVG symbols (Ik Onkar, Khanda)
+├── lib/                            # Data + domain logic (no JSX)
+│   ├── data.ts                     # BaniDB fetching, mapping, Hukamnama, banis
+│   ├── types.ts                    # Shared types (VerseLine, Bani, prefs, …)
+│   ├── sgpc.ts                     # Year-aware SGPC loader (bundled → JSON + cache)
+│   ├── nanakshahi.ts               # Nanakshahi months, conversion, Sangrand
+│   ├── gurpurabs.ts                # SGPC Samvat 558 Gurpurab → Ang table
+│   ├── nitnem.ts                   # Nitnem metadata table (client-safe)
+│   ├── backup.ts                   # Full local-data backup/restore (5 slices)
+│   ├── gurmukhi.ts                 # Akhar + lagan-matra data for Learn page
+│   ├── shortcuts.ts                # Canonical shortcut list (see `?` modal)
+│   ├── downloadAng.ts              # .txt download + share-card canvas
+│   └── useSwipeNavigation.ts       # Swipe-nav hook
+├── public/                         # Static assets + PWA
+│   ├── sw.js                       # Service worker (offline cache, incl. /data JSON)
+│   ├── data/sgpc-558.json          # SGPC Samvat 558 months + Gurpurabs
+│   ├── golden-temple-night.png     # Home hero image
+│   └── icon-192.png / icon-512.png # PWA icons
+├── scripts/
+│   └── validate-sgpc.mjs           # Validator for public/data/sgpc-*.json
+├── tests/                          # Playwright suite (Chromium)
+│   ├── ang-navigation.spec.ts
+│   ├── ang-range.spec.ts
+│   ├── ang-advance.spec.ts
+│   ├── commentary.spec.ts
+│   ├── learn-gurpurab.spec.ts
+│   ├── new-features.spec.ts
+│   ├── more-features.spec.ts
+│   └── sgpc-calendar.spec.ts
+├── .github/workflows/ci.yml        # CI: typecheck → lint → validate:sgpc → Playwright
+├── eslint.config.mjs               # ESLint (eslint-config-next, zero-error policy)
+├── next.config.ts                  # Next.js config
+├── tsconfig.json                   # TypeScript config (strict)
+├── postcss.config.mjs              # PostCSS / Tailwind v4
+├── playwright.config.ts            # Playwright config (Chromium, dev-server autostart)
+└── AGENTS.md                       # Agent working rules (read before changing code)
 ```
+
+Where to look:
+
+| I want to … | Start here |
+| --- | --- |
+| Change how a verse renders | `components/VerseCard.tsx` + `lib/types.ts` |
+| Change reader settings / themes | `components/ReaderControls.tsx` + `components/ReaderPrefsProvider.tsx` |
+| Change bookmarks, notes, highlights, progress | `components/*Provider.tsx` + `lib/backup.ts` |
+| Change the Hukamnama | `app/actions.ts` + `lib/data.ts` + `components/HukamnamaCard.tsx` |
+| Change the calendar / Gurpurabs | `app/calendar/page.tsx` + `lib/sgpc.ts`, `lib/nanakshahi.ts`, `lib/gurpurabs.ts` |
+| Add a keyboard shortcut | `lib/shortcuts.ts` + `components/ShortcutHelp.tsx` |
+| Change offline behaviour | `public/sw.js` + `components/ServiceWorkerRegistrar.tsx` |
+| Add a new year of SGPC dates | `public/data/sgpc-*.json` + `scripts/validate-sgpc.mjs` |
 
 ## Routes
 
