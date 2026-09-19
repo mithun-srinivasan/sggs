@@ -17,6 +17,10 @@
  * It also reports completed Angs to `ProgressProvider.markAngRead` so the
  * reading-progress/streak/history features (7/8/9/13) see every Ang the user
  * reads to the end, in both single-page and continuous modes.
+ *
+ * Every rendered Ang is also fed to the offline search index
+ * (`saveAngToOfflineIndex`) so `/search` keeps working offline against
+ * visited Angs.
  */
 
 "use client";
@@ -26,6 +30,7 @@ import type { Ang, VerseLine } from "@/lib/types";
 import VerseCard from "@/components/VerseCard";
 import { useReaderPrefs } from "@/components/ReaderPrefsProvider";
 import { useReadingProgress } from "@/components/ProgressProvider";
+import { saveAngToOfflineIndex } from "@/lib/offline-search";
 import AngEndSentinel from "./AngEndSentinel";
 import { getAngForReader } from "./actions";
 
@@ -75,6 +80,17 @@ export default function ClientAngReader({
     pending.catch(() => {});
     upcomingRef.current.set(next, pending);
   }, [chain, prefs.isContinuousMode, maxAng]);
+
+  // -- Offline search index --------------------------------------------------
+  // Every rendered Ang feeds the on-device search index so `/search` keeps
+  // working offline against Angs the reader has actually visited. Indexing
+  // is fire-and-forget localStorage writes — it must never block rendering.
+
+  useEffect(() => {
+    for (const segment of chain) {
+      saveAngToOfflineIndex(segment.ang, segment.lines);
+    }
+  }, [chain]);
 
   /**
    * Handles "user has scrolled to the very bottom of Ang `ang`".

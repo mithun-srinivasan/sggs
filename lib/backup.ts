@@ -3,16 +3,18 @@
  * ---------------------------------------------------------------------------
  * Full local-data backup (item 6): every user-data slice lives in its own
  * localStorage key with no account or sync, so a cleared browser profile
- * wipes bookmarks, notes, highlights, progress, and preferences at once.
+ * wipes bookmarks, notes, highlights, progress, preferences, and reminder
+ * choices at once.
  *
- * This module snapshots all five keys into one timestamped JSON file and
+ * This module snapshots all six keys into one timestamped JSON file and
  * restores them with per-slice shape validation.  The bookmarks page hosts
  * the Export / Import UI; a successful import reloads the page so every
- * provider rehydrates from the restored keys.
+ * provider rehydrates from the restored keys.  Device-to-device transfer
+ * without a server uses the same envelope over WebRTC (see lib/sync.ts).
  *
  * Backup file shape:
  *   { app, version, exportedAt, data: { bookmarks?, notes?, highlights?,
- *     progress?, prefs? } }
+ *     progress?, prefs?, notifs? } }
  */
 
 const BACKUP_APP = "sggs-reader";
@@ -25,6 +27,7 @@ export const BACKUP_KEYS = [
   "sgs-reader-highlights",
   "sgs-reader-progress",
   "sgs-reader-prefs",
+  "sgs-reader-notif-prefs",
 ] as const;
 
 export type BackupKey = (typeof BACKUP_KEYS)[number];

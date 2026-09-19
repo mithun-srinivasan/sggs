@@ -169,10 +169,12 @@ These come from `AGENTS.md` and are the most common review blockers:
 3. **Keyboard shortcuts:** register every shortcut in `lib/shortcuts.ts`.
 4. **Top bar contract:** scroll-up OR top-edge hover reveal; never hide while
    the settings popover is open; keep the `header.fixed` selector stable.
-5. **Local data:** five browser-local slices (bookmarks, notes, highlights,
-   progress, prefs). New slices follow the hydrate → `hydrated` guard →
-   500 ms debounce pattern, join `BACKUP_KEYS`, and update the backup card
-   copy. Tell users plainly that data lives only in their browser.
+5. **Local data:** six browser-local slices (bookmarks, notes, highlights,
+   progress, prefs, notification prefs). New slices follow the hydrate →
+   `hydrated` guard → 500 ms debounce pattern, join `BACKUP_KEYS`, and update
+   the backup card copy. Re-derivable caches (Hukamnama copy, offline search
+   index, recents, SGPC JSON cache) stay out of backups. Tell users plainly
+   that data lives only in their browser.
 6. **Offline:** never cache cross-origin (BaniDB/SGPC) in `public/sw.js`;
    bump `CACHE` on every worker change.
 7. **Performance:** home hero stays `priority`; share-card canvas must fit

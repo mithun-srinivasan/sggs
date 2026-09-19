@@ -9,6 +9,15 @@
  * renders as a layered block — Gurmukhi, transliteration, English — with
  * toggle pills so readers control which layers they see.
  *
+ * Mobile hardening: verse text and the audio-player row are wrapped so
+ * 320 px viewports never scroll horizontally; the live fetch races a
+ * 12 s client timeout (slow mobile data fails fast instead of hanging on
+ * the skeleton); and the last successful Hukamnama is cached in
+ * localStorage (`sggs-hukamnama-cache`, re-derivable data — not backed up)
+ * so flaky networks still show yesterday's verses labelled as a saved copy.
+ * A bell toggle (`HukamnamaNotifyButton`) opts into once-a-day reminders,
+ * delivered check-on-visit (see lib/notifications.ts — no push server).
+ *
  * The source Ang is shown as a prominent linked pill (Sri Darbar Sahib,
  * Amritsar · Ang N) so readers always know where the Hukamnama was taken
  * from. Audio uses a small themed player (CSS vars only, so light/dark/
@@ -38,6 +47,42 @@ import {
 } from "lucide-react";
 import type { HukamnamaInfo } from "@/lib/types";
 import { getTodaysHukamnama } from "@/app/actions";
+import { maybeNotifyHukamnama } from "@/lib/notifications";
+import HukamnamaNotifyButton from "@/components/HukamnamaNotifyButton";
+
+/** localStorage key for the last successful Hukamnama (stale-copy fallback). */
+const HUKAM_CACHE_KEY = "sggs-hukamnama-cache";
+
+/** Client-side bound on the live fetch — slow mobile data fails fast. */
+const HUKAM_FETCH_TIMEOUT_MS = 12000;
+
+/** Shape of the cached copy: fetch time + the Hukamnama itself. */
+interface HukamCache {
+  at: string;
+  data: HukamnamaInfo;
+}
+
+/** Reads the last saved Hukamnama; corrupt storage yields `null`. */
+function readHukamCache(): HukamCache | null {
+  try {
+    const raw = localStorage.getItem(HUKAM_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as HukamCache;
+    if (!parsed || typeof parsed !== "object" || !Array.isArray(parsed.data?.lines)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+/** Saves the fresh Hukamnama for offline/flaky-network fallbacks. */
+function writeHukamCache(data: HukamnamaInfo): void {
+  try {
+    localStorage.setItem(HUKAM_CACHE_KEY, JSON.stringify({ at: new Date().toISOString(), data }));
+  } catch {
+    // Quota / private mode — the live render already succeeded.
+  }
+}
 
 // -- Themed audio player ------------------------------------------------------
 // Custom controls bound to a hidden <audio> element. Native controls can't
@@ -130,7 +175,9 @@ function HukamnamaAudioPlayer({
 
   return (
     <div className="rounded-xl border border-[var(--border)] bg-[var(--bg)]/70 p-3">
-      <div className="flex items-center gap-3">
+      {/* Narrow screens wrap the controls under the title instead of
+          crushing it — 320 px viewports must never scroll sideways. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <button
           type="button"
           onClick={toggle}
@@ -139,7 +186,7 @@ function HukamnamaAudioPlayer({
         >
           {playing ? <Pause size={16} /> : <Play size={16} className="ml-0.5" />}
         </button>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 basis-32">
           <p className="truncate text-xs font-bold text-[var(--text)]">{title}</p>
           <p className="mt-0.5 text-[11px] tabular-nums text-[var(--text-muted)]">
             {formatPlayerTime(current)} /{" "}
@@ -248,6 +295,8 @@ function HukamnamaAudioPlayer({
 export default function HukamnamaCard() {
   const [hukamnama, setHukamnama] = useState<HukamnamaInfo | null>(null);
   const [loading, setLoading] = useState(true);
+  /** True when showing the saved copy because the live fetch failed/timed out. */
+  const [stale, setStale] = useState(false);
   /** Hides the SGPC image slot when the remote file 403s/404s (deployed hotlink). */
   const [imgFailed, setImgFailed] = useState(false);
   /** Layer toggles — default on so every reader sees all three layers at once. */
@@ -256,12 +305,32 @@ export default function HukamnamaCard() {
 
   useEffect(() => {
     let cancelled = false;
-    getTodaysHukamnama()
+    // Bounded fetch: on slow mobile data the server action's own retries
+    // would otherwise hold the skeleton for ~a minute. A timeout here drops
+    // to the saved copy (or the SGPC-link fallback) within seconds.
+    const timeout = new Promise<null>((_, reject) =>
+      setTimeout(() => reject(new Error("hukamnama timeout")), HUKAM_FETCH_TIMEOUT_MS)
+    );
+    Promise.race([getTodaysHukamnama(), timeout])
       .then((h) => {
-        if (!cancelled) setHukamnama(h);
+        if (cancelled) return;
+        if (h && h.lines.length > 0) {
+          setHukamnama(h);
+          setStale(false);
+          writeHukamCache(h);
+          // Fire-and-forget: reminders must never delay the render.
+          void maybeNotifyHukamnama(h);
+        } else {
+          const cached = readHukamCache();
+          setHukamnama(cached?.data ?? null);
+          setStale(Boolean(cached));
+        }
       })
       .catch(() => {
-        if (!cancelled) setHukamnama(null);
+        if (cancelled) return;
+        const cached = readHukamCache();
+        setHukamnama(cached?.data ?? null);
+        setStale(Boolean(cached));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -324,21 +393,43 @@ export default function HukamnamaCard() {
   const hasEnglish = hukamnama.lines.some((l) => l.translations.en);
 
   return (
-    <section className="rounded-2xl border border-[var(--border)] bg-[var(--surface)]/80 backdrop-blur-md p-6 sm:p-8 shadow-[var(--shadow-subtle)]">
-      {/* Card heading + date */}
+    <section className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface)]/80 backdrop-blur-md p-6 sm:p-8 shadow-[var(--shadow-subtle)]">
+      {/* Card heading + date + reminder toggle */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border-subtle)] pb-3">
         <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[var(--accent)]">
           <Sunrise size={14} />
           <span>Daily Hukamnama</span>
         </div>
-        <span className="text-[11px] font-medium text-[var(--text-muted)]">
-          {hukamnama.dateLabel}
-        </span>
+        <div className="flex items-center gap-1">
+          <span className="text-[11px] font-medium text-[var(--text-muted)]">
+            {hukamnama.dateLabel}
+          </span>
+          <HukamnamaNotifyButton />
+        </div>
       </div>
 
-      <div className={`mt-4 grid gap-5 ${showMedia ? "sm:grid-cols-[minmax(0,1fr)_180px]" : ""}`}>
+      {/* Stale-copy notice — the saved verses still render below, honestly labelled. */}
+      {stale && (
+        <p
+          role="status"
+          className="mt-3 rounded-lg border border-[var(--border)] bg-[var(--bg)]/70 px-3 py-2 text-[11px] text-[var(--text-muted)]"
+        >
+          Showing the last saved Hukamnama — reconnect for today&apos;s.{" "}
+          <a
+            href="https://hs.sgpc.net/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-[var(--accent)] hover:underline"
+          >
+            Read today&apos;s on the SGPC website
+          </a>
+          .
+        </p>
+      )}
+
+      <div className={`mt-4 grid min-w-0 gap-5 ${showMedia ? "sm:grid-cols-[minmax(0,1fr)_180px]" : ""}`}>
         {/* Verse layers: Gurmukhi + transliteration + English, one block per tuk */}
-        <div className="space-y-2">
+        <div className="min-w-0 space-y-2">
           {/* Source line — Raag/Writer plus a prominent linked Ang pill so
               readers always see where this Hukamnama was taken from */}
           <div className="flex flex-wrap items-center gap-2">
@@ -398,18 +489,20 @@ export default function HukamnamaCard() {
             {hukamnama.lines.map((l) => (
               <div
                 key={l.id}
-                className="space-y-1.5 border-l-2 border-[var(--accent)]/40 pl-3"
+                className="min-w-0 space-y-1.5 border-l-2 border-[var(--accent)]/40 pl-3"
               >
-                <p dir="auto" lang="pa" className="font-gurmukhi text-lg leading-loose text-[var(--text)]">
+                {/* break-words: long Gurmukhi lines must wrap on 320 px
+                    screens instead of pushing the card sideways. */}
+                <p dir="auto" lang="pa" className="font-gurmukhi break-words text-lg leading-loose text-[var(--text)]">
                   {l.gurmukhi}
                 </p>
                 {showTranslit && (l.transliterations?.en || l.transliteration) && (
-                  <p className="text-xs italic leading-relaxed text-[var(--text-muted)]">
+                  <p className="break-words text-xs italic leading-relaxed text-[var(--text-muted)]">
                     {l.transliterations?.en || l.transliteration}
                   </p>
                 )}
                 {showTranslation && l.translations.en && (
-                  <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
+                  <p className="break-words text-xs leading-relaxed text-[var(--text-secondary)]">
                     {l.translations.en}
                   </p>
                 )}

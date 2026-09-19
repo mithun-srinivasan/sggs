@@ -11,6 +11,9 @@
  *     as-is against the translations.
  *   - Pressing Enter or tapping a quick-search suggestion triggers `runSearch`
  *     (a server action that calls BaniDB's `/v2/search` endpoint).
+ *   - When the network is unreachable (or the live call times out), the page
+ *     falls back to the on-device index of visited Angs
+ *     (`lib/offline-search.ts`), clearly labelled as offline results.
  *   - Results are displayed as a list of links that deep-link directly to the
  *     matching Ang and verse fragment (`/ang/N#verseId`).
  *   - While loading, a spinning Loader2 indicator is shown.
@@ -19,11 +22,17 @@
 
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { ArrowLeft, Search as SearchIcon, Loader2, X } from "lucide-react";
+import { ArrowLeft, Search as SearchIcon, Loader2, X, WifiOff } from "lucide-react";
 import type { SearchResult } from "@/lib/types";
 import { romanToGurmukhi } from "@/lib/gurmukhi";
+import {
+  offlineIndexStats,
+  readRecentSearches,
+  saveRecentSearch,
+  searchOfflineIndex,
+} from "@/lib/offline-search";
 import { runSearch } from "./actions";
 
 /** Search input modes: Gurmukhi (with Roman transliteration) or English. */
@@ -53,8 +62,25 @@ export default function SearchPage() {
   /** Whether a search has been submitted (used to decide whether to show the landing UI). */
   const [searched, setSearched] = useState(false);
 
-  /** Whether the last search attempt failed (server/network error). */
-  const [error, setError] = useState(false);
+  /** True when the shown results came from the on-device offline index. */
+  const [offlineMode, setOfflineMode] = useState(false);
+
+  /** How many Angs the offline index currently covers (for the badge). */
+  const [indexedAngs, setIndexedAngs] = useState(0);
+
+  /** Recent successful searches, shown as landing-page shortcuts. */
+  const [recent, setRecent] = useState<string[]>([]);
+
+  /** Hydrate offline stats + recents once on mount (SSR-safe). */
+  useEffect(() => {
+    try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- deliberate post-mount hydration from localStorage
+      setIndexedAngs(offlineIndexStats().angs);
+      setRecent(readRecentSearches());
+    } catch {
+      // Storage unavailable — search still works online.
+    }
+  }, []);
 
   /**
    * Resolves the submitted term: in Gurmukhi mode, Roman text is converted
@@ -76,8 +102,12 @@ export default function SearchPage() {
 
   /**
    * Executes a search for the given term.
-   * Updates `results`, `query`, and the `loading`/`searched` flags.
-   * Any failure surfaces an error state instead of leaving the spinner spinning.
+   *
+   * Online first (bounded by a client timeout so poor mobile networks fail
+   * fast instead of spinning); on any failure — or when the browser reports
+   * offline — falls back to the on-device index of visited Angs and labels
+   * the results as offline. Any failure surfaces an error state instead of
+   * leaving the spinner spinning.
    */
   const doSearch = async (term: string) => {
     const resolved = resolveTerm(term);
@@ -85,16 +115,39 @@ export default function SearchPage() {
     setQuery(term);
     setLoading(true);
     setSearched(true);
-    setError(false);
-    try {
-      const res = await runSearch(resolved);
-      setResults(res);
-    } catch {
-      setResults([]);
-      setError(true);
-    } finally {
+    setOfflineMode(false);
+
+    // Offline fast-path: skip the live call entirely when the browser
+    // already knows it has no connection.
+    const searchOffline = () => {
+      const hits = searchOfflineIndex(resolved, mode);
+      setResults(hits);
+      setOfflineMode(true);
+      setIndexedAngs(offlineIndexStats().angs);
       setLoading(false);
+    };
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      searchOffline();
+      return;
     }
+
+    try {
+      // Client-side bound: the server action already retries upstream, so a
+      // slow mobile network would otherwise hold the spinner for ~a minute.
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("search timeout")), 15000)
+      );
+      const res = await Promise.race([runSearch(resolved), timeout]);
+      setResults(res);
+      saveRecentSearch(resolved);
+      setRecent(readRecentSearches());
+    } catch {
+      // Live search failed — the offline index is the graceful fallback,
+      // not an error screen.
+      searchOffline();
+      return;
+    }
+    setLoading(false);
   };
 
   /** Form submission handler — prevents default and delegates to `doSearch`. */
@@ -211,6 +264,33 @@ export default function SearchPage() {
                 </button>
               ))}
             </div>
+
+            {/* Recent searches (from successful online searches on this device) */}
+            {recent.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-faint)]">
+                  Recent
+                </p>
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  {recent.map((term) => (
+                    <button
+                      key={term}
+                      onClick={() => doSearch(term)}
+                      className="min-h-[36px] rounded-lg border border-dashed border-[var(--border)] px-3 text-xs text-[var(--text-muted)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                    >
+                      {term}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Offline index footprint */}
+            {indexedAngs > 0 && (
+              <p className="text-[11px] text-[var(--text-faint)]">
+                {indexedAngs} {indexedAngs === 1 ? "Ang" : "Angs"} available for offline search
+              </p>
+            )}
           </div>
         )}
 
@@ -222,30 +302,42 @@ export default function SearchPage() {
           </div>
         )}
 
-        {/* Empty results */}
-        {!loading && searched && results.length === 0 && !error && (
+        {/* Empty results — online wording, or offline wording when the
+            on-device index had nothing (with a nudge to read more Angs). */}
+        {!loading && searched && results.length === 0 && (
           <div className="py-16 text-center space-y-1">
             <p className="text-sm font-semibold text-[var(--text)]">No results for &ldquo;{query}&rdquo;</p>
-            <p className="text-xs text-[var(--text-muted)]">Try a shorter search term or check spelling.</p>
-          </div>
-        )}
-
-        {/* Search error */}
-        {!loading && searched && error && (
-          <div className="py-16 text-center space-y-1">
-            <p className="text-sm font-semibold text-[var(--text)]">Search failed right now.</p>
-            <p className="text-xs text-[var(--text-muted)]">
-              Check your connection and try again, or search for something else.
-            </p>
+            {offlineMode ? (
+              <p className="text-xs text-[var(--text-muted)]">
+                Offline search covers {indexedAngs} {indexedAngs === 1 ? "Ang" : "Angs"} you have
+                read. Reconnect for the full 1,430-Ang search, or read more Angs to grow the
+                offline index.
+              </p>
+            ) : (
+              <p className="text-xs text-[var(--text-muted)]">Try a shorter search term or check spelling.</p>
+            )}
           </div>
         )}
 
         {/* Search results */}
         {!loading && results.length > 0 && (
           <div className="space-y-4">
-            <p className="text-xs font-semibold text-[var(--text-muted)]">
-              Found {results.length} verses
-            </p>
+            {offlineMode ? (
+              <p
+                role="status"
+                className="flex items-center justify-center gap-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-[11px] font-semibold text-[var(--text-muted)]"
+              >
+                <WifiOff size={13} className="text-[var(--accent)]" />
+                <span>
+                  Offline results · from {indexedAngs} {indexedAngs === 1 ? "Ang" : "Angs"} you
+                  have read
+                </span>
+              </p>
+            ) : (
+              <p className="text-xs font-semibold text-[var(--text-muted)]">
+                Found {results.length} verses
+              </p>
+            )}
 
             <ul className="divide-y divide-[var(--border)] border-y border-[var(--border)]">
               {results.map((r) => (

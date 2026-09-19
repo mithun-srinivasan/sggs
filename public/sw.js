@@ -17,11 +17,12 @@
  *     the first visit.
  *   - All other / cross-origin requests (e.g. BaniDB API from the client) are
  *     left untouched so nothing is cached accidentally.
+ *   - `notificationclick` focuses the app when a Hukamnama reminder is tapped.
  *
  * The version string in `CACHE` busts the cache whenever the build changes.
  */
 
-const CACHE = "sggs-reader-v3";
+const CACHE = "sggs-reader-v4";
 const SHELL_CACHE = `${CACHE}-shell`;
 
 /** Entry documents precached on install for instant offline opens. */
@@ -138,4 +139,23 @@ self.addEventListener("fetch", (event) => {
   }
 
   // Everything else follows the network untouched.
+});
+
+// -- Hukamnama reminder taps -------------------------------------------------
+// Focusing beats navigating: the reminder's `data.url` is the Home page,
+// which already hosts the Hukamnama card.
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || "/";
+  event.waitUntil(
+    self.clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((windows) => {
+        for (const win of windows) {
+          if ("focus" in win) return win.focus();
+        }
+        return self.clients.openWindow(url);
+      })
+  );
 });

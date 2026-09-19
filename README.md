@@ -4,7 +4,7 @@
 [![React](https://img.shields.io/badge/React-19-61dafb)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6)](https://www.typescriptlang.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-38bdf8)](https://tailwindcss.com/)
-[![Tests](https://img.shields.io/badge/Playwright-29_tests-brightgreen)](https://playwright.dev/)
+[![Tests](https://img.shields.io/badge/Playwright-32_tests-brightgreen)](https://playwright.dev/)
 [![CI](https://github.com/mithun-srinivasan/sggs/actions/workflows/ci.yml/badge.svg)](https://github.com/mithun-srinivasan/sggs/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/License-MIT-amber)](./LICENSE)
 
@@ -201,7 +201,12 @@ score and streak tracking.
 ### Search, bookmarks, shortcuts, PWA
 
 - `/search` (live BaniDB, Gurmukhi, Roman auto-converted to Gurmukhi, or
-  English), `/bookmarks` (tags, print, JSON export/import).
+  English) with an **offline fallback** over Angs you have already read,
+  plus recent-search shortcuts; `/bookmarks` (tags, print, JSON export/import).
+- **Hukamnama reminders** — opt-in bell on the Hukamnama card for a once-a-day
+  notification (delivered when the app is opened; no account or server).
+- **Device sync** — `/sync` transfers the full backup directly between your
+  devices over encrypted WebRTC (manual codes, same WiFi works best).
 - Keyboard shortcuts (press `?`).
 - Installable PWA: web manifest, production-only service worker with
   precached shell, runtime route caching, offline home fallback, and an
@@ -276,8 +281,9 @@ sggs-reader/
 │   ├── calendar/page.tsx           # Nanakshahi month grid + Gurpurab links
 │   ├── learn/page.tsx              # Gurmukhi chart + practice quiz
 │   └── search/
-│       ├── page.tsx                # Search UI (Gurmukhi / Roman / English)
+│       ├── page.tsx                # Search UI (Gurmukhi / Roman / English + offline fallback)
 │       └── actions.ts              # Search server action (live BaniDB)
+│   ├── sync/page.tsx               # Device-to-device sync (manual WebRTC codes)
 ├── components/                     # UI building blocks
 │   ├── NavigationBar.tsx           # Top bar (scroll-aware + hover edge-peek)
 │   ├── ReaderControls.tsx          # Settings panel (display, modes, languages)
@@ -288,6 +294,7 @@ sggs-reader/
 │   ├── HighlightsProvider.tsx      # 4-colour highlights (localStorage)
 │   ├── VerseCard.tsx               # One verse: text layers + actions
 │   ├── HukamnamaCard.tsx           # Daily Hukamnama (hs.sgpc.net + BaniDB enrich)
+│   ├── HukamnamaNotifyButton.tsx   # Opt-in daily reminder toggle (Notification API)
 │   ├── ShabadOfDayCard.tsx         # Random daily shabad (date-keyed cache)
 │   ├── ReadingHeatmap.tsx          # 20-week activity grid from visit history
 │   ├── ReadingJourney.tsx          # Progress / streak / plan / goal card
@@ -306,13 +313,16 @@ sggs-reader/
 │   ├── nanakshahi.ts               # Nanakshahi months, conversion, Sangrand
 │   ├── gurpurabs.ts                # SGPC Samvat 558 Gurpurab → Ang table
 │   ├── nitnem.ts                   # Nitnem metadata table (client-safe)
-│   ├── backup.ts                   # Full local-data backup/restore (5 slices)
+│   ├── backup.ts                   # Full local-data backup/restore (6 slices)
+│   ├── sync.ts                     # Serverless WebRTC sync (manual signalling)
+│   ├── offline-search.ts           # Visited-Ang index + offline search fallback
+│   ├── notifications.ts            # Reminder prefs + check-on-visit delivery
 │   ├── gurmukhi.ts                 # Akhar + lagan-matra data for Learn page
 │   ├── shortcuts.ts                # Canonical shortcut list (see `?` modal)
 │   ├── downloadAng.ts              # .txt download + share-card canvas
 │   └── useSwipeNavigation.ts       # Swipe-nav hook
 ├── public/                         # Static assets + PWA
-│   ├── sw.js                       # Service worker (offline cache, incl. /data JSON)
+│   ├── sw.js                       # Service worker (offline cache, /data JSON, reminder taps)
 │   ├── data/sgpc-558.json          # SGPC Samvat 558 months + Gurpurabs
 │   ├── golden-temple-night.png     # Home hero image
 │   └── icon-192.png / icon-512.png # PWA icons
@@ -342,8 +352,11 @@ Where to look:
 | --- | --- |
 | Change how a verse renders | `components/VerseCard.tsx` + `lib/types.ts` |
 | Change reader settings / themes | `components/ReaderControls.tsx` + `components/ReaderPrefsProvider.tsx` |
-| Change bookmarks, notes, highlights, progress | `components/*Provider.tsx` + `lib/backup.ts` |
+| Change bookmarks, notes, highlights, progress, reminders | `components/*Provider.tsx` + `lib/backup.ts` |
 | Change the Hukamnama | `app/actions.ts` + `lib/data.ts` + `components/HukamnamaCard.tsx` |
+| Change Hukamnama reminders | `components/HukamnamaNotifyButton.tsx` + `lib/notifications.ts` |
+| Change offline search | `app/search/page.tsx` + `lib/offline-search.ts` |
+| Change device sync | `app/sync/page.tsx` + `lib/sync.ts` |
 | Change the calendar / Gurpurabs | `app/calendar/page.tsx` + `lib/sgpc.ts`, `lib/nanakshahi.ts`, `lib/gurpurabs.ts` |
 | Add a keyboard shortcut | `lib/shortcuts.ts` + `components/ShortcutHelp.tsx` |
 | Change offline behaviour | `public/sw.js` + `components/ServiceWorkerRegistrar.tsx` |
@@ -359,8 +372,9 @@ Where to look:
 | `/nitnem` | Daily Nitnem index |
 | `/nitnem/japji` · `/jaap` · `/anand` · `/rehras` · `/sohila` | Bani readers |
 | `/learn` | Gurmukhi chart + quiz |
-| `/search` | Gurbani search (Gurmukhi / Roman / English) |
+| `/search` | Gurbani search (Gurmukhi / Roman / English, offline fallback) |
 | `/bookmarks` | Saved verses (localStorage) |
+| `/sync` | Device-to-device data transfer (serverless WebRTC) |
 | `/calendar` | Nanakshahi calendar with Gurpurabs |
 
 Invalid Ang numbers or bani tokens show a custom not-found page.
@@ -372,7 +386,7 @@ npm run test        # headless Playwright run (Chromium)
 npm run test:ui     # interactive UI mode
 ```
 
-29 tests cover Ang navigation, theme persistence, genuine commentary sources
+32 tests cover Ang navigation, theme persistence, genuine commentary sources
 and switching, the Learn chart, Gurpurab Ang chips, Hindi/Spanish switching,
 pad-arth display, Nitnem pages, the daily goal tracker, visraam markers,
 Shabad of the Day, the heatmap, phonetic-search preview, verse share-card
@@ -419,11 +433,14 @@ terms before deploying publicly.
 
 ## Current limitations
 
-- Bookmarks, preferences, progress, notes, and highlights are browser-local
-  with no account or sync — use “Back up all” on the bookmarks page to
-  export all five slices to one JSON file, and restore it after clearing
-  browser data.
-- Search depends on the BaniDB service and network availability.
+- Bookmarks, preferences, progress, notes, highlights, and reminder choices
+  are browser-local with no account or cloud — use “Back up all” on the
+  bookmarks page to export all six slices to one JSON file, restore it after
+  clearing browser data, or move it directly between devices at `/sync`.
+- Search depends on the BaniDB service and network availability; offline it
+  falls back to Angs you have already read.
+- Reminders fire when the app is opened (no push server by design) — install
+  the PWA and allow notifications for the best results.
 - Hot-set Ang/bani data is fetched at build time and refreshed weekly —
   a rebuild picks up any upstream corrections immediately.
 - Lunar-origin Gurpurabs move every Gregorian year, so each new Nanakshahi

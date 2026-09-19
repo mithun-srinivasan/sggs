@@ -13,8 +13,10 @@
  *     `@media print` CSS hides the interactive chrome.
  *   - Export / Import bookmarks as timestamped JSON.
  *   - **Full backup (data safety):** one file with bookmarks + notes +
- *     highlights + progress + preferences (`lib/backup.ts`), since every
- *     slice is browser-local with no account or sync.  Restoring reloads
+ *     highlights + progress + preferences + reminder choices
+ *     (`lib/backup.ts`), since every slice is browser-local with no
+ *     account. Device-to-device transfer without a server uses the same
+ *     envelope over WebRTC at `/sync`. Restoring reloads
  *     the page so all providers rehydrate.
  *   - A theme toggle cycles through Light → Dark → Sepia (3-way cycle).
  *
@@ -268,18 +270,22 @@ export default function BookmarksPage() {
                 Back up your data
               </h2>
               <p className="mt-1 text-[11px] leading-relaxed text-[var(--text-muted)]">
-                Bookmarks, notes, highlights, progress, and settings live only
-                in this browser.{" "}
+                Bookmarks, notes, highlights, progress, settings, and reminder
+                choices live only in this browser.{" "}
                 {lastBackup
                   ? `Last full backup: ${new Date(lastBackup).toLocaleDateString()}.`
-                  : "No full backup yet — export one now."}
+                  : "No full backup yet — export one now."}{" "}
+                <Link href="/sync" className="font-semibold text-[var(--accent)] hover:underline">
+                  Sync to another device
+                </Link>
+                .
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-2">
               <button
                 onClick={handleBackupExport}
                 aria-label="Download full backup"
-                title="Download bookmarks + notes + highlights + progress + settings"
+                title="Download bookmarks + notes + highlights + progress + settings + reminders"
                 className="flex min-h-[44px] items-center gap-2 rounded-xl bg-[var(--accent)] px-4 py-2 text-xs font-semibold text-white transition hover:opacity-90 active:scale-[0.97]"
               >
                 <Download size={14} />

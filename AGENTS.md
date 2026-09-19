@@ -89,9 +89,12 @@ it*. Follow all ten rules on every change.
 
 ## 6. Local data & backup
 
-- Five browser-local slices, no sync: `sgs-reader-bookmarks`,
+- Six browser-local slices, no sync: `sgs-reader-bookmarks`,
   `sgs-reader-notes`, `sgs-reader-highlights`, `sgs-reader-progress`,
-  `sgs-reader-prefs` (+ `sgs-reader-last-backup`, `sggs-sgpc-*` cache).
+  `sgs-reader-prefs`, `sgs-reader-notif-prefs`
+  (+ `sgs-reader-last-backup`, `sggs-sgpc-*` cache, `sggs-hukamnama-cache`,
+  `sgs-reader-offline-index`, `sgs-reader-recent-searches` — re-derivable
+  caches, deliberately excluded from backups).
 - Full backup/restore lives in `lib/backup.ts` (one timestamped JSON, strict
   envelope validation). Restoring writes keys then **reloads the page** so
   all providers rehydrate — providers hydrate once on mount by design.
