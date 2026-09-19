@@ -1,0 +1,7 @@
+# .gitattributes
+# ---------------------------------------------------------------------------
+# Normalise line endings to LF so checks and diffs are stable across OSes.
+
+* text=auto eol=lf
+*.png binary
+*.ico binary

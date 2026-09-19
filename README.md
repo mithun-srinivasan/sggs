@@ -5,6 +5,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6)](https://www.typescriptlang.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-38bdf8)](https://tailwindcss.com/)
 [![Tests](https://img.shields.io/badge/Playwright-29_tests-brightgreen)](https://playwright.dev/)
+[![CI](https://github.com/mithun-srinivasan/sggs/actions/workflows/ci.yml/badge.svg)](https://github.com/mithun-srinivasan/sggs/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/License-MIT-amber)](./LICENSE)
 
 A focused, verse-by-verse web reader for Sri Guru Granth Sahib Ji — all 1,430 Angs
@@ -25,6 +26,7 @@ SGPC, reading plans and streaks, and offline PWA support.
 - [Testing](#testing)
 - [Data sources and attribution](#data-sources-and-attribution)
 - [Current limitations](#current-limitations)
+- [Contributing](#contributing)
 - [License](#license)
 
 ## How the whole product works
@@ -370,7 +372,7 @@ npm run test        # headless Playwright run (Chromium)
 npm run test:ui     # interactive UI mode
 ```
 
-25 tests cover Ang navigation, theme persistence, genuine commentary sources
+29 tests cover Ang navigation, theme persistence, genuine commentary sources
 and switching, the Learn chart, Gurpurab Ang chips, Hindi/Spanish switching,
 pad-arth display, Nitnem pages, the daily goal tracker, visraam markers,
 Shabad of the Day, the heatmap, phonetic-search preview, verse share-card
@@ -426,6 +428,13 @@ terms before deploying publicly.
   a rebuild picks up any upstream corrections immediately.
 - Lunar-origin Gurpurabs move every Gregorian year, so each new Nanakshahi
   year needs its own `public/data/sgpc-<year>.json` (see above).
+
+## Contributing
+
+Contributions are welcome. Please read [CONTRIBUTING.md](./CONTRIBUTING.md)
+for setup, scripts, branching, and the pull-request checklist, and follow the
+[Code of Conduct](./CODE_OF_CONDUCT.md). Report security issues privately per
+[SECURITY.md](./SECURITY.md) — do not open a public issue.
 
 ## License
 

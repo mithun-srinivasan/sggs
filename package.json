@@ -2,6 +2,20 @@
   "name": "sgs-reader",
   "version": "0.1.0",
   "private": true,
+  "description": "Verse-by-verse web reader for Sri Guru Granth Sahib Ji — 1,430 Angs, Nitnem banis, Hukamnama, Nanakshahi calendar, offline PWA.",
+  "keywords": ["gurbani", "sikh", "nitnem", "hukamnama", "nanakshahi", "nextjs", "pwa"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mithun-srinivasan/sggs.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mithun-srinivasan/sggs/issues"
+  },
+  "homepage": "https://srigurugranthsahib.vercel.app/",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
