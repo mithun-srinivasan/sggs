@@ -184,10 +184,11 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
     const planDayIndex = (() => {
       if (!hydrated || !progress.plan) return -1;
       const start = dateFromKey(progress.plan.startDate);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      // Noon-to-noon arithmetic: midnight-based `today` would sit 12 h
+      // behind a noon `start` and report day 0 all through day 2.
+      const today = dateFromKey(dayKey());
       const dayMs = 86_400_000;
-      const idx = Math.floor((today.getTime() - start.getTime()) / dayMs);
+      const idx = Math.round((today.getTime() - start.getTime()) / dayMs);
       return Math.max(0, Math.min(idx, progress.plan.totalDays - 1));
     })();
 

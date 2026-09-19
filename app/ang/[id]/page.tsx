@@ -62,11 +62,14 @@ export const dynamicParams = true;
  * `dynamicParams` above.
  */
 export function generateStaticParams() {
+  // Every Ang linked from a high-traffic entry point (verified against live
+  // BaniDB raag ranges + featured-verse locations — keep in sync with
+  // RAAG_SECTIONS / SACRED_VERSES in app/page.tsx and GURPURABS).
   const HOT_ANGS = [
     1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 94, 139, 151, 217, 262, 347, 462,
-    489, 527, 537, 595, 611, 631, 660, 705, 711, 719, 721, 728, 773, 795,
-    859, 885, 917, 975, 984, 989, 1107, 1118, 1125, 1168, 1197, 1254, 1294,
-    1319, 1327, 1352, 1353, 1374, 1430,
+    489, 527, 537, 595, 631, 660, 696, 711, 719, 721, 728, 773, 795,
+    859, 885, 917, 975, 984, 989, 1107, 1118, 1125, 1144, 1168, 1197, 1254, 1294,
+    1319, 1327, 1352, 1353, 1430,
   ];
   return HOT_ANGS.map((n) => ({ id: String(n) }));
 }

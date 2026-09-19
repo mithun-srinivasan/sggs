@@ -11,6 +11,9 @@
  * Checks per file:
  *   - filename year matches `nanakshahiYear`
  *   - exactly 12 months with valid Gregorian starts + positive day counts
+ *   - month starts flow into each other (start[i] + days[i] == start[i+1]);
+ *     the final month is exempt — Nanakshahi leap drift lets Phaggan overlap
+ *     the next Chet by a day at the year boundary (SGPC-published tables do)
  *   - every Gurpurab has a name, a valid month/day, and an Ang in 1–1430
  *   - no duplicate Gurpurab names within the year
  *
@@ -65,6 +68,28 @@ function validateFile(file) {
     }
     if (!Number.isInteger(m.days) || m.days < 28 || m.days > 32) {
       fail(file, `months[${i}].days (${m.days}) must be 28–32`);
+    }
+  }
+
+  // Continuity: month[i]'s start + days must land exactly on month[i+1]'s
+  // start, so calendar grids never gap or overlap mid-year. The base
+  // Gregorian year comes from `gregorianSpan` (Feb length is leap-sensitive);
+  // the final month is exempt per the header note.
+  const spanYear = Number(String(json.gregorianSpan ?? "").match(/\d{4}/)?.[0] ?? 2026);
+  const startDate = (m, year) => new Date(year, m.startMonth - 1, m.startDay);
+  for (let i = 0; i < json.months.length - 1; i++) {
+    const cur = json.months[i];
+    const next = json.months[i + 1];
+    // Months Jan–Feb belong to the next Gregorian year of the Nanakshahi span.
+    const curYear = cur.startMonth >= 3 ? spanYear : spanYear + 1;
+    const expected = new Date(startDate(cur, curYear).getTime() + cur.days * 86_400_000);
+    const nextYear = next.startMonth >= 3 ? spanYear : spanYear + 1;
+    const actual = startDate(next, nextYear);
+    if (expected.getTime() !== actual.getTime()) {
+      fail(
+        file,
+        `months[${i}] (${cur.name}) + ${cur.days}d does not reach months[${i + 1}] (${next.name})`
+      );
     }
   }
 

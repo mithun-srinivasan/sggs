@@ -10,14 +10,14 @@
 
 import type { GurmukhiAkhar } from "./types";
 
-/** Consonant akhars of the Gurmukhi script with standard romanisations. */
+/** Letter akhars of the Gurmukhi script with standard romanisations. */
 export const AKHARS: GurmukhiAkhar[] = [
   { gurmukhi: "ਅ", roman: "a" },
   { gurmukhi: "ਆ", roman: "aa" },
   { gurmukhi: "ੲ", roman: "i" },
   { gurmukhi: "ੳ", roman: "u" },
-  { gurmukhi: "ਏ", roman: "ee" },
-  { gurmukhi: "ਓ", roman: "oo" },
+  { gurmukhi: "ਏ", roman: "e" },
+  { gurmukhi: "ਓ", roman: "o" },
   { gurmukhi: "ਕ", roman: "ka" },
   { gurmukhi: "ਖ", roman: "kha" },
   { gurmukhi: "ਗ", roman: "ga" },

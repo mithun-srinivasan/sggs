@@ -80,6 +80,8 @@ export interface VerseLine {
   commentary?: {
     /** English commentary (SGPC official rendering when available). */
     en?: string;
+    /** Provenance of `en`: SGPC (Bhai Manmohan Singh) or Dr. Sant Singh Khalsa fallback. */
+    enSource?: "sgpc" | "khalsa";
     /** Punjabi teekas, keyed by CommentarySource. */
     pu?: {
       /** Guru Granth Darpan (Prof. Sahib Singh). */

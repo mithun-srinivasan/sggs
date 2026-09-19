@@ -56,7 +56,12 @@ export default function ShabadOfDayCard() {
       setLoading(false);
       return;
     }
-    getDailyShabad()
+    // Bounded fetch (same 12 s mobile-data budget as the Hukamnama card):
+    // a slow network drops to the fallback instead of holding the skeleton.
+    const timeout = new Promise<null>((_, reject) =>
+      setTimeout(() => reject(new Error("shabad timeout")), 12000)
+    );
+    Promise.race([getDailyShabad(), timeout])
       .then((s) => {
         if (cancelled) return;
         if (s) {
@@ -121,7 +126,7 @@ export default function ShabadOfDayCard() {
           {shabad.raag && shabad.writer ? " · " : ""}
           {shabad.writer ?? ""}
         </p>
-        <p dir="auto" lang="pa" className="font-gurmukhi text-lg leading-loose text-[var(--text)]">
+        <p dir="auto" lang="pa" className="font-gurmukhi break-words text-lg leading-loose text-[var(--text)]">
           {shabad.verses
             .slice(0, 3)
             .map((l) => l.gurmukhi)

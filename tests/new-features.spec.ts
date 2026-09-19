@@ -48,15 +48,18 @@ test.describe("Word meanings", () => {
 });
 
 test.describe("Nitnem Banis", () => {
-  test("nitnem index lists all five prayers", async ({ page }) => {
+  test("nitnem index lists all daily prayers", async ({ page }) => {
     await page.goto("/nitnem");
 
     for (const name of [
       "Japji Sahib",
       "Jaap Sahib",
+      "Tav-Prasad Savaiye",
+      "Chaupai Sahib",
       "Anand Sahib",
       "Rehras Sahib",
       "Kirtan Sohila",
+      "Ardas",
     ]) {
       await expect(page.getByText(name, { exact: true }).first()).toBeVisible();
     }

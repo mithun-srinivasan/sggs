@@ -3,7 +3,7 @@
  * ---------------------------------------------------------------------------
  * The Home-page "Daily Nitnem" card (feature 27).
  *
- * Static list of the five daily prayers in traditional recitation order,
+ * Static list of the daily prayers in traditional recitation order,
  * each linking to its bani reader page.  Server-rendered from the static
  * `NITNEM_BANIS` table — no fetch needed.
  */

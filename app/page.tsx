@@ -69,7 +69,7 @@ const SACRED_VERSES = [
     gurmukhi: "ਪਵਣੁ ਗੁਰੂ ਪਾਣੀ ਪਿਤਾ ਮਾਤਾ ਧਰਤਿ ਮਹਤੁ ॥ ਦਿਵਸੁ ਰਾਤਿ ਦੁਇ ਦਾਈ ਦਾਇਆ ਖੇਲੈ ਸਗਲ ਜਗਤੁ ॥",
     transliteration: "pavan guroo paanee pitaa maataa dharat mahat || dhivas raat dhue dhaaee dhaaiaa khelai sagal jagat ||",
     translation: "Air is the Guru, Water is the Father, and Earth is the Great Mother of all. Day and night are the two nurses, in whose lap the whole world plays.",
-    ang: 4,
+    ang: 8,
     writer: "Guru Nanak Dev Ji",
   },
   {
@@ -81,12 +81,12 @@ const SACRED_VERSES = [
     writer: "Guru Arjan Dev Ji",
   },
   {
-    title: "Bhagat Kabir — Sacred Salok",
+    title: "Bhairao — Thou Art My Father",
     gurmukhi: "ਤੂ ਮੇਰਾ ਪਿਤਾ ਤੂਹੈ ਮੇਰਾ ਮਾਤਾ ॥ ਤੂ ਮੇਰਾ ਬੰਧਪੁ ਤੂ ਮੇਰਾ ਭ੍ਰਾਤਾ ॥",
     transliteration: "too meraa pitaa toohai meraa maataa || too meraa bandhap too meraa bhraataa ||",
     translation: "You are my Father, and You are my Mother. You are my Relative, and You are my Brother.",
-    ang: 1374,
-    writer: "Bhagat Kabir",
+    ang: 1144,
+    writer: "Guru Arjan Dev Ji",
   },
   {
     title: "Anand Sahib — Eternal Bliss",
@@ -97,11 +97,11 @@ const SACRED_VERSES = [
     writer: "Guru Amar Das Ji",
   },
   {
-    title: "Raag Sorath — Praise of the Divine",
+    title: "Japji Sahib — Those Who Serve",
     gurmukhi: "ਜਿਨਿ ਸੇਵਿਆ ਤਿਨਿ ਪਾਇਆ ਮਾਨੁ ॥ ਨਾਨਕ ਰਾਮ ਨਾਮੁ ਗੁਣ ਗਾਨੁ ॥",
     transliteration: "jin seviaa tin paaiaa maan || naanak raam naam gun gaan ||",
     translation: "Those who serve Him obtain honor. O Nanak, sing the Glorious Praises of the Divine Name.",
-    ang: 611,
+    ang: 2,
     writer: "Guru Nanak Dev Ji",
   },
 ];
@@ -127,7 +127,7 @@ const RAAG_SECTIONS = [
   { name: "Raag Bihagra", gurmukhi: "ਬਿਹਾਗੜਾ", ang: 537 },
   { name: "Raag Sorath", gurmukhi: "ਸੋਰਠਿ", ang: 595 },
   { name: "Raag Dhanasri", gurmukhi: "ਧਨਾਸਰੀ", ang: 660 },
-  { name: "Raag Jaitsri", gurmukhi: "ਜੈਤਸਰੀ", ang: 705 },
+  { name: "Raag Jaitsri", gurmukhi: "ਜੈਤਸਰੀ", ang: 696 },
   { name: "Raag Todi", gurmukhi: "ਤੋਡੀ", ang: 711 },
   { name: "Raag Bairari", gurmukhi: "ਬੈਰਾੜੀ", ang: 719 },
   { name: "Raag Tilang", gurmukhi: "ਤਿਲੰਗ", ang: 721 },

@@ -137,7 +137,7 @@ export default function SearchPage() {
       const timeout = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error("search timeout")), 15000)
       );
-      const res = await Promise.race([runSearch(resolved), timeout]);
+      const res = await Promise.race([runSearch(resolved, mode), timeout]);
       setResults(res);
       saveRecentSearch(resolved);
       setRecent(readRecentSearches());

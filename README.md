@@ -4,12 +4,12 @@
 [![React](https://img.shields.io/badge/React-19-61dafb)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6)](https://www.typescriptlang.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-38bdf8)](https://tailwindcss.com/)
-[![Tests](https://img.shields.io/badge/Playwright-32_tests-brightgreen)](https://playwright.dev/)
+[![Tests](https://img.shields.io/badge/Playwright-34_tests-brightgreen)](https://playwright.dev/)
 [![CI](https://github.com/mithun-srinivasan/sggs/actions/workflows/ci.yml/badge.svg)](https://github.com/mithun-srinivasan/sggs/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/License-MIT-amber)](./LICENSE)
 
 A focused, verse-by-verse web reader for Sri Guru Granth Sahib Ji — all 1,430 Angs
-plus the five daily Nitnem Banis, genuine translations in four languages, real
+plus the daily Nitnem Banis, genuine translations in four languages, real
 teekas with correct attribution, word-by-word meanings, a daily Hukamnama from
 SGPC, reading plans and streaks, and offline PWA support.
 
@@ -40,7 +40,7 @@ at runtime.
 ```mermaid
 flowchart TD
     subgraph BUILD["Build time — npm run build"]
-        GEN["generateStaticParams<br/>51-Ang hot set + 5 banis (rest is on-demand ISR)"]
+        GEN["generateStaticParams<br/>51-Ang hot set + 8 banis (rest is on-demand ISR)"]
         FETCH["fetchUpstream — BaniDB API<br/>20s timeout + 2 retries"]
         MAP["mapVerse — normalize to VerseLine"]
         HTML["68 static pages + on-demand Ang/print ISR"]
@@ -155,7 +155,7 @@ flowchart TD
 
 ### Nitnem (`/nitnem`)
 
-- The five daily prayers in traditional order — Japji Sahib, Jaap Sahib,
+- The daily prayers in traditional order — Japji Sahib, Jaap Sahib,
   Anand Sahib, Rehras Sahib, Kirtan Sohila — each a statically generated
   reader with the same translations, commentary, and word meanings.
 - Home-page card with recitation-time chips; bani-aware bookmarks that
@@ -275,7 +275,7 @@ sggs-reader/
 │   │       ├── page.tsx            # Print / PDF layout (on-demand ISR)
 │   │       └── PrintAng.tsx        # Print controls + formatting
 │   ├── nitnem/
-│   │   ├── page.tsx                # Nitnem index (five daily prayers)
+│   │   ├── page.tsx                # Nitnem index (daily prayers + Ardas)
 │   │   └── [token]/page.tsx        # Bani reader (statically generated ×5)
 │   ├── bookmarks/page.tsx          # Saved verses: tags, print, import/export, backup
 │   ├── calendar/page.tsx           # Nanakshahi month grid + Gurpurab links
@@ -355,7 +355,7 @@ Where to look:
 | Change bookmarks, notes, highlights, progress, reminders | `components/*Provider.tsx` + `lib/backup.ts` |
 | Change the Hukamnama | `app/actions.ts` + `lib/data.ts` + `components/HukamnamaCard.tsx` |
 | Change Hukamnama reminders | `components/HukamnamaNotifyButton.tsx` + `lib/notifications.ts` |
-| Change offline search | `app/search/page.tsx` + `lib/offline-search.ts` |
+| Change offline search | `app/search/page.tsx` + `lib/offline-search.ts` (live search needs explicit `searchtype` 2/3 — BaniDB's default matches first-letters only) |
 | Change device sync | `app/sync/page.tsx` + `lib/sync.ts` |
 | Change the calendar / Gurpurabs | `app/calendar/page.tsx` + `lib/sgpc.ts`, `lib/nanakshahi.ts`, `lib/gurpurabs.ts` |
 | Add a keyboard shortcut | `lib/shortcuts.ts` + `components/ShortcutHelp.tsx` |
@@ -386,7 +386,7 @@ npm run test        # headless Playwright run (Chromium)
 npm run test:ui     # interactive UI mode
 ```
 
-32 tests cover Ang navigation, theme persistence, genuine commentary sources
+34 tests cover Ang navigation, theme persistence, genuine commentary sources
 and switching, the Learn chart, Gurpurab Ang chips, Hindi/Spanish switching,
 pad-arth display, Nitnem pages, the daily goal tracker, visraam markers,
 Shabad of the Day, the heatmap, phonetic-search preview, verse share-card

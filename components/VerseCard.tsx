@@ -19,8 +19,9 @@
  *  18.  Parallel translations — English + Punjabi side-by-side.
  *  19.  Tap-to-transliterate — tap a Gurmukhi word to see its Romanisation.
  *  21.  Text & commentary — a genuine, attributable teeka block (English:
- *       SGPC Bhai Manmohan Singh, or Punjabi: Guru Granth Darpan ↑ Faridkot
- *       Teeka), switchable via ReaderControls.
+ *       SGPC Bhai Manmohan Singh, or Punjabi: Guru Granth Darpan +
+ *       Faridkot Teeka), switchable via ReaderControls.  Labels always name
+ *       the source actually shown, never the fallback's author.
  *  25.  Extra translation languages — Hindi + Spanish alongside en/pu.
  *  26.  Word meanings — per-verse pad-arth block served by BaniDB.
  *  27.  Nitnem banis — optional `baniToken`/`baniName` re-target bookmark,
@@ -146,25 +147,38 @@ export default function VerseCard({
 
   // -- Commentary / teeka (feature 21) ------------------------------------------
 
+  /** Which Punjabi teeka is actually displayed (selection, or its fallback). */
+  const puShownSource: "darpan" | "fareedkot" =
+    prefs.commentarySource === "fareedkot"
+      ? line.commentary?.pu?.fareedkot
+        ? "fareedkot"
+        : "darpan"
+      : line.commentary?.pu?.darpan
+        ? "darpan"
+        : "fareedkot";
+
   /**
    * The genuine commentary text for the user's selected language and teeka.
    * `line.commentary` is populated directly from BaniDB's dedicated teeka
    * sources (SGPC English rendering / Guru Granth Darpan / Faridkot Teeka) —
    * never the plain translation.  Falls back gracefully when a source is
-   * absent for a particular verse.
+   * absent for a particular verse, and the label always names the source
+   * actually shown — a fallback must never wear another author's name.
    */
   const commentaryText =
     prefs.commentaryLang === "en"
       ? line.commentary?.en
-      : prefs.commentarySource === "fareedkot"
-        ? line.commentary?.pu?.fareedkot ?? line.commentary?.pu?.darpan
-        : line.commentary?.pu?.darpan ?? line.commentary?.pu?.fareedkot;
+      : puShownSource === "fareedkot"
+        ? line.commentary?.pu?.fareedkot
+        : line.commentary?.pu?.darpan;
 
   /** Attribution line for the commentary block — reflects the actual source. */
   const commentaryLabel =
     prefs.commentaryLang === "en"
-      ? "Commentary · English (SGPC · Bhai Manmohan Singh)"
-      : prefs.commentarySource === "fareedkot"
+      ? line.commentary?.enSource === "khalsa"
+        ? "Commentary · English (Dr. Sant Singh Khalsa)"
+        : "Commentary · English (SGPC · Bhai Manmohan Singh)"
+      : puShownSource === "fareedkot"
         ? "Commentary · Faridkot Teeka (Sant Giani Badan Singh Ji)"
         : "Commentary · Guru Granth Darpan (Prof. Sahib Singh)";
 
@@ -240,8 +254,6 @@ export default function VerseCard({
       // Non-critical: clipboard may be blocked in some contexts.
     }
   };
-
-  // -- Share as card image (feature 14) -------------------------------------------------
 
   // -- Share as card image (feature 14) -------------------------------------------------
 
@@ -472,7 +484,7 @@ export default function VerseCard({
       >
         {hiddenMemorize ? (
           <span dir="auto" lang="pa">
-            ੴ ॥ {line.gurmukhi.split(/\s+/).filter(Boolean).map(() => "—").join(" ")}
+            {line.gurmukhi.split(/\s+/).filter(Boolean).map(() => "—").join(" ")}
           </span>
         ) : (
           gurmukhiWithVisraam ?? gurmukhiText
@@ -533,13 +545,15 @@ export default function VerseCard({
         </p>
       )}
 
-      {/* Secondary: Translation — normal OR parallel layout (feature 18) */}
+      {/* Secondary: Translation — normal OR parallel layout (feature 18).
+          Parallel always pairs English with Punjabi (never the same text
+          twice when the preferred language is already Punjabi). */}
       {prefs.showTranslation && !prefs.isTapToTranslit && (
         prefs.isParallelTranslations ? (
           <div className={`verse-extra mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 ${hiddenMemorize ? "blur-sm select-none" : ""}`}>
-            {primaryTranslation && (
+            {line.translations.en && (
               <p className="text-[0.92em] leading-relaxed text-[var(--text-secondary)]">
-                {primaryTranslation}
+                {line.translations.en}
               </p>
             )}
             {punjabiTranslation && (
@@ -595,6 +609,7 @@ export default function VerseCard({
             value={note?.text ?? ""}
             onChange={(e) => setNote(line.id, e.target.value)}
             placeholder="Write a brief reflection on this verse…"
+            aria-label="Verse note"
             rows={2}
             lang="en"
             className="w-full rounded-lg border border-[var(--border)] bg-[var(--bg)] p-2 text-xs text-[var(--text)] outline-none focus:border-[var(--accent)]"

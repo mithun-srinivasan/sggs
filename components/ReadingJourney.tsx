@@ -117,9 +117,9 @@ export default function ReadingJourney() {
             <div className="mb-1.5 flex items-center justify-between text-xs">
               <span className="text-[var(--text-muted)]">
                 {goalMet ? (
-                  <span className="font-semibold text-[var(--accent)]">
-                    Goal complete — Vaheguru! ({todaysAngCount}/{dailyGoal})
-                  </span>
+                    <span className="font-semibold text-[var(--accent)]">
+                      Goal complete — Waheguru! ({todaysAngCount}/{dailyGoal})
+                    </span>
                 ) : (
                   `${todaysAngCount} of ${dailyGoal} Angs today`
                 )}

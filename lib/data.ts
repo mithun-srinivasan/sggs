@@ -187,6 +187,8 @@ interface BaniDbVerseRaw {
   writer?: { english?: string | null } | null;
   pageNo?: number;
   lineNo?: number;
+  /** Raag of the verse (absent on some responses) — source of the Ang header. */
+  raag?: { unicode?: string | null; english?: string | null } | null;
   /**
    * Santhya pause data.  Each source holds one `{p, t}` marker or an array
    * of them: `p` = 0-based word index the pause follows, `t` = "v" (short)
@@ -199,10 +201,9 @@ interface BaniDbVerseRaw {
   };
 }
 
-/** Shape of the `/v2/angs/:id` response envelope. */
+/** Shape of the `/v2/angs/:id` response envelope (no header — Raag comes per-verse). */
 interface BaniDbAngResponse {
   page?: BaniDbVerseRaw[];
-  baniInfo?: { unicode?: string };
   source?: { english?: string };
 }
 
@@ -317,9 +318,16 @@ function mapVerse(raw: BaniDbVerseRaw, angNumber: number, index: number): VerseL
     visraam: parseVisraam(raw.visraam),
     // Genuine commentary sources (feature 21): SGPC English rendering for the
     // English side, and both the Guru Granth Darpan + Faridkot Teeka for the
-    // Punjabi side.  Each falls back gracefully when the API omits a source.
+    // Punjabi side.  Each falls back gracefully when the API omits a source —
+    // and `enSource` records which English text actually won so the UI never
+    // misattributes a Sant Singh Khalsa fallback as the SGPC rendering.
     commentary: {
       en: raw.translation?.en?.ms ?? raw.translation?.en?.bdb ?? raw.translation?.en?.ssk ?? undefined,
+      enSource: raw.translation?.en?.ms
+        ? "sgpc"
+        : (raw.translation?.en?.bdb ?? raw.translation?.en?.ssk)
+          ? "khalsa"
+          : undefined,
       pu: {
         darpan:
           raw.translation?.pu?.ss?.unicode ?? raw.translation?.pu?.ss?.gurmukhi ?? undefined,
@@ -363,9 +371,13 @@ export const getAng = cache(
     const rows = data.page ?? [];
     if (rows.length === 0) return null;
 
+    // The `/angs` envelope carries no header — the Raag name comes from the
+    // verses themselves (`raag.unicode`, e.g. "ਰਾਗੁ ਟੋਡੀ").
+    const raagName = rows.map((r) => r.raag?.unicode ?? undefined).find(Boolean);
+
     return {
       angNumber,
-      raagName: data.baniInfo?.unicode ?? undefined,
+      raagName,
       source: data.source?.english ?? "Sri Guru Granth Sahib Ji",
       lines: rows.map((raw, i) => mapVerse(raw, angNumber, i)),
     };
@@ -449,22 +461,32 @@ export async function getShabadOfDay(): Promise<DailyShabad | null> {
 }
 
 /**
- * Full-text search across all Angs via BaniDB's search endpoint.
+ * Full-text search across Sri Guru Granth Sahib Ji via BaniDB's search endpoint.
  * Used by `app/search/page.tsx` through the `runSearch` server action.
+ *
+ * BaniDB's default `searchtype` (0) matches first-letters only, so a plain
+ * `/search/<term>` call returns nothing for full words — the type must be
+ * explicit: `2` for full-word Gurmukhi, `3` for English translations, always
+ * scoped to `source=G` (this reader covers Sri Guru Granth Sahib Ji only).
  *
  * Search results are inherently dynamic, so this request is never cached.
  *
  * @param term the search query (Gurmukhi or English)
+ * @param lang which side of the text to match (`pa` → Gurmukhi, `en` → English)
  * @returns up to 40 matching verses, or an empty array on failure
  */
-export async function searchGurbani(term: string): Promise<SearchResult[]> {
+export async function searchGurbani(term: string, lang: "pa" | "en" = "pa"): Promise<SearchResult[]> {
   const trimmed = term.trim();
   if (!trimmed) return []; // empty query → no results, no network call
 
   try {
-    const res = await fetchUpstream(`${BANIDB_BASE}/search/${encodeURIComponent(trimmed)}`, {
-      cache: "no-store", // always hit the live API — data is dynamic
-    });
+    const searchType = lang === "en" ? 3 : 2;
+    const res = await fetchUpstream(
+      `${BANIDB_BASE}/search/${encodeURIComponent(trimmed)}?searchtype=${searchType}&source=G&results=40`,
+      {
+        cache: "no-store", // always hit the live API — data is dynamic
+      }
+    );
     if (!res.ok) return [];
 
     const data = await res.json();

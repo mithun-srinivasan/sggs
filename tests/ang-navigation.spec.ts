@@ -4,7 +4,8 @@
  * End-to-end tests for core reader behaviour.
  *
  * Suite coverage:
- *   1. `/ang/1` renders the expected page chrome and content.
+ *   1. `/ang/1` renders the expected page chrome and content (the heading
+ *      shows the Raag name from BaniDB when scripture loads, else "Ang 1").
  *   2. The "Next Ang" button in the top navigation advances to `/ang/2`.
  *   3. Changing the theme via the settings panel persists to localStorage
  *      (`sgs-reader-prefs`).
@@ -22,10 +23,11 @@ test.describe("Ang Navigation", () => {
     // The document title should include the Ang number.
     await expect(page).toHaveTitle(/Ang 1/);
 
-    // The main heading must be visible and reference "Ang 1".
+    // The main heading shows the Raag name ("ਜਪ" on Ang 1) when scripture
+    // loads, falling back to "Ang 1" when the upstream is unreachable.
     const header = page.locator("h1");
     await expect(header).toBeVisible();
-    await expect(header).toContainText("Ang 1");
+    await expect(header).toContainText(/ਜਪ|Ang 1/);
 
     // The source label ("Sri Guru Granth Sahib Ji") is rendered near the top.
     const sourceText = page.locator("text=Sri Guru Granth Sahib Ji").first();

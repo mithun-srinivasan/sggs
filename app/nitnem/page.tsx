@@ -1,8 +1,9 @@
 /**
  * app/nitnem/page.tsx
  * ---------------------------------------------------------------------------
- * Nitnem index (feature 27) — the five daily prayers in traditional
- * recitation order.  Static list linking to each bani's reader page.
+ * Nitnem index (feature 27) — the daily prayers in traditional recitation
+ * order (Rehat Maryada): five morning banis, Rehras at sunset, Sohila at
+ * night, and the Ardas.  Static list linking to each bani's reader page.
  */
 
 import type { Metadata } from "next";
@@ -13,7 +14,7 @@ import { NITNEM_BANIS } from "@/lib/nitnem";
 export const metadata: Metadata = {
   title: "Daily Nitnem Banis | Sri Guru Granth Sahib Ji",
   description:
-    "The five daily Sikh prayers — Japji Sahib, Jaap Sahib, Anand Sahib, Rehras Sahib and Kirtan Sohila — with translations and commentary.",
+    "The daily Sikh prayers — Japji Sahib, Jaap Sahib, Tav-Prasad Savaiye, Chaupai Sahib, Anand Sahib, Rehras Sahib, Kirtan Sohila and Ardas — with translations and commentary.",
 };
 
 export default function NitnemPage() {
@@ -34,7 +35,8 @@ export default function NitnemPage() {
 
       <main className="mx-auto max-w-2xl px-5 py-10 sm:px-8">
         <p className="text-center text-xs leading-relaxed text-[var(--text-muted)]">
-          The five daily prayers, in traditional order — with the same translations,
+          The daily prayers, in traditional order — five morning banis, Rehras
+          at sunset, Sohila at night, and the Ardas — with the same translations,
           commentary and word meanings as the Ang reader.
         </p>
 
