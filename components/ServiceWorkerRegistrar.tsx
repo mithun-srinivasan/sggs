@@ -20,9 +20,25 @@ export default function ServiceWorkerRegistrar() {
   useEffect(() => {
     if (process.env.NODE_ENV !== "production") return;
     if (!("serviceWorker" in navigator)) return;
-    navigator.serviceWorker.register("/sw.js").catch(() => {
-      // Registration failure (e.g. offline-first install) is non-fatal.
-    });
+    navigator.serviceWorker
+      .register("/sw.js")
+      .then((reg) => {
+        // Check for a new SW version every page load.
+        reg.addEventListener("updatefound", () => {
+          const sw = reg.installing;
+          if (!sw) return;
+          sw.addEventListener("statechange", () => {
+            // When the new SW is installed and idle, activate it immediately
+            // so the user gets the latest CSS/JS without a manual SW purge.
+            if (sw.state === "installed" && navigator.serviceWorker.controller) {
+              sw.postMessage({ type: "SKIP_WAITING" });
+            }
+          });
+        });
+      })
+      .catch(() => {
+        // Registration failure (e.g. offline-first install) is non-fatal.
+      });
   }, []);
 
   return null;

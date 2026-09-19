@@ -22,7 +22,7 @@
  * The version string in `CACHE` busts the cache whenever the build changes.
  */
 
-const CACHE = "sggs-reader-v4";
+const CACHE = "sggs-reader-v5";
 const SHELL_CACHE = `${CACHE}-shell`;
 
 /** Entry documents precached on install for instant offline opens. */
