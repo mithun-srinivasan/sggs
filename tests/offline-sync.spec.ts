@@ -122,8 +122,9 @@ test.describe("Live search and Raag headers", () => {
     await page.goto("/ang/711");
     const heading = page.locator("main h1").first();
     await expect(heading).toBeVisible({ timeout: 30_000 });
-    // Live: the Raag name (e.g. "ਰਾਗੁ ਟੋਡੀ"); unreachable upstream: the
-    // retry card's own heading — both prove the page resolved deliberately.
-    await expect(heading).toContainText(/ਰਾਗੁ|ਅੰਗ/);
+    // Live: the section Gurmukhi name from DynamicAngHeader (e.g. "ਤੋਡੀ");
+    // unreachable upstream: the retry card's own heading — both prove the
+    // page resolved deliberately.
+    await expect(heading).toContainText(/[\u0A00-\u0A7F]+|Ang/);
   });
 });
