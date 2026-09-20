@@ -36,6 +36,7 @@ import { getAng } from "@/lib/data";
 import { MAX_ANG, MIN_ANG } from "@/lib/types";
 import NavigationBar from "@/components/NavigationBar";
 import SwipeContainer from "@/components/SwipeContainer";
+import DynamicAngHeader from "@/components/DynamicAngHeader";
 import BottomNav from "./BottomNav";
 import AngStartSentinel from "./AngStartSentinel";
 import AngUnavailable from "./AngUnavailable";
@@ -132,21 +133,8 @@ export default async function AngPage({ params }: PageProps) {
           {/* Scroll-to-top sentinel — detects "scroll back up" → previous Ang */}
           <AngStartSentinel angNumber={angNumber} minAng={MIN_ANG} />
 
-          {/* Ang header: source, Raag name, and position indicator */}
-          <header className="mb-12 text-center space-y-2 border-b border-[var(--border-subtle)] pb-8">
-            <p className="text-[11px] uppercase tracking-widest text-[var(--text-faint)] font-medium">
-              {ang.source ?? "Sri Guru Granth Sahib Ji"}
-            </p>
-            <h1 className="font-gurmukhi text-2xl sm:text-3xl font-medium text-[var(--text)]">
-              {ang.raagName ?? ang.raagNameEn ?? `Ang ${ang.angNumber}`}
-            </h1>
-            {ang.raagName && ang.raagNameEn && ang.raagNameEn !== ang.raagName && (
-              <p className="text-sm text-[var(--text-muted)] font-normal">{ang.raagNameEn}</p>
-            )}
-            <p className="text-xs text-[var(--text-muted)] font-normal">
-              Ang {ang.angNumber} of {MAX_ANG}
-            </p>
-          </header>
+          {/* Ang header: canonical section name, composition, and author */}
+          <DynamicAngHeader currentAngId={angNumber} source={ang.source} />
 
           {/* Verse list — rendered and chained by the continuous-mode reader */}
           <ClientAngReader
