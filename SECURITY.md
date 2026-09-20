@@ -16,7 +16,7 @@ with security updates.
 **Do not open a public GitHub issue for security reports.**
 
 - Open a private
-  [GitHub Security Advisory](https://github.com/mithun-srinivasan/sggs/security/advisories/new)
+  [GitHub Security Advisory](https://github.com/mithun-srinivasan/srigurugranthsahib/security/advisories/new)
   against this repository, or contact the maintainers through the contact
   listed on the repository profile.
 - Include: affected routes or files, steps to reproduce, impact assessment,

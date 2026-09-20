@@ -344,7 +344,7 @@ export default function HomePage() {
 
               {/* GitHub source */}
               <a
-                href="https://github.com/mithun-srinivasan/sggs"
+                href="https://github.com/mithun-srinivasan/srigurugranthsahib"
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="View source on GitHub"
@@ -665,7 +665,7 @@ export default function HomePage() {
             Sri Guru Granth Sahib Ji — Ang Reader
           </p>
           <a
-            href="https://github.com/mithun-srinivasan/sggs"
+            href="https://github.com/mithun-srinivasan/srigurugranthsahib"
             target="_blank"
             rel="noopener noreferrer"
             className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--text-muted)] transition hover:text-[var(--accent)]"

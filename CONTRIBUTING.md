@@ -51,7 +51,7 @@ Requirements: **Node.js 20+** (CI uses Node 22, see [`.nvmrc`](./.nvmrc)),
 npm, and internet access (BaniDB at build time; Hukamnama/search at runtime).
 
 ```bash
-git clone https://github.com/mithun-srinivasan/sggs.git
+git clone https://github.com/mithun-srinivasan/srigurugranthsahib.git
 cd sggs-reader/sggs-reader   # repo root is the folder containing package.json
 npm install
 npm run dev                  # http://localhost:3000

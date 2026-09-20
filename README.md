@@ -5,7 +5,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6)](https://www.typescriptlang.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-38bdf8)](https://tailwindcss.com/)
 [![Tests](https://img.shields.io/badge/Playwright-34_tests-brightgreen)](https://playwright.dev/)
-[![CI](https://github.com/mithun-srinivasan/sggs/actions/workflows/ci.yml/badge.svg)](https://github.com/mithun-srinivasan/sggs/actions/workflows/ci.yml)
+[![CI](https://github.com/mithun-srinivasan/srigurugranthsahib/actions/workflows/ci.yml/badge.svg)](https://github.com/mithun-srinivasan/srigurugranthsahib/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/License-MIT-amber)](./LICENSE)
 
 A focused, verse-by-verse web reader for Sri Guru Granth Sahib Ji — all 1,430 Angs
