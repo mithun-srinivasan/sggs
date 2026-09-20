@@ -219,6 +219,7 @@ score and streak tracking.
 - BaniDB v2 API (scripture, translations, teekas, pad-arth, banis).
 - SGPC website scrape (daily Hukamnama image only).
 - ESLint (`eslint-config-next`, zero-error policy) + Playwright (Chromium).
+- Security headers (CSP, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy).
 
 ## Getting started
 
@@ -320,6 +321,8 @@ sggs-reader/
 │   ├── gurmukhi.ts                 # Akhar + lagan-matra data for Learn page
 │   ├── shortcuts.ts                # Canonical shortcut list (see `?` modal)
 │   ├── downloadAng.ts              # .txt download + share-card canvas
+│   ├── shareCard.ts                # Verse share-card PNG canvas rendering
+│   ├── homeConstants.ts            # Sacred verses + Raag sections data
 │   └── useSwipeNavigation.ts       # Swipe-nav hook
 ├── public/                         # Static assets + PWA
 │   ├── sw.js                       # Service worker (offline cache, /data JSON, reminder taps)
@@ -351,6 +354,7 @@ Where to look:
 | I want to … | Start here |
 | --- | --- |
 | Change how a verse renders | `components/VerseCard.tsx` + `lib/types.ts` |
+| Change verse share-card PNG | `lib/shareCard.ts` |
 | Change reader settings / themes | `components/ReaderControls.tsx` + `components/ReaderPrefsProvider.tsx` |
 | Change bookmarks, notes, highlights, progress, reminders | `components/*Provider.tsx` + `lib/backup.ts` |
 | Change the Hukamnama | `app/actions.ts` + `lib/data.ts` + `components/HukamnamaCard.tsx` |
@@ -358,6 +362,7 @@ Where to look:
 | Change offline search | `app/search/page.tsx` + `lib/offline-search.ts` (live search needs explicit `searchtype` 2/3 — BaniDB's default matches first-letters only) |
 | Change device sync | `app/sync/page.tsx` + `lib/sync.ts` |
 | Change the calendar / Gurpurabs | `app/calendar/page.tsx` + `lib/sgpc.ts`, `lib/nanakshahi.ts`, `lib/gurpurabs.ts` |
+| Change home page data | `lib/homeConstants.ts` (sacred verses, Raag sections) |
 | Add a keyboard shortcut | `lib/shortcuts.ts` + `components/ShortcutHelp.tsx` |
 | Change offline behaviour | `public/sw.js` + `components/ServiceWorkerRegistrar.tsx` |
 | Add a new year of SGPC dates | `public/data/sgpc-*.json` + `scripts/validate-sgpc.mjs` |

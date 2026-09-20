@@ -310,75 +310,45 @@ export function ReaderPrefsProvider({ children }: { children: ReactNode }) {
   // -- Context value: memoized setters compose the public API ----------------
 
   const value = useMemo((): ReaderPrefsContextValue => {
-    const setTheme = (theme: ThemeMode) => setPrefs((p) => ({ ...p, theme }));
-    const toggleTransliteration = () =>
-      setPrefs((p) => ({ ...p, showTransliteration: !p.showTransliteration }));
-    const toggleTranslation = () =>
-      setPrefs((p) => ({ ...p, showTranslation: !p.showTranslation }));
-    const setTranslationLang = (translationLang: TranslationLang) =>
-      setPrefs((p) => ({ ...p, translationLang }));
-    const increaseFontSize = () =>
-      setPrefs((p) => ({
-        ...p,
-        fontScale: Math.min(1.6, +(p.fontScale + 0.1).toFixed(2)),
-      }));
-    const decreaseFontSize = () =>
-      setPrefs((p) => ({
-        ...p,
-        fontScale: Math.max(0.8, +(p.fontScale - 0.1).toFixed(2)),
-      }));
-    const toggleLareevarMode = () =>
-      setPrefs((p) => ({ ...p, isLareevarMode: !p.isLareevarMode }));
-    const toggleContinuousMode = () =>
-      setPrefs((p) => ({ ...p, isContinuousMode: !p.isContinuousMode }));
-    const toggleFocusMode = () =>
-      setPrefs((p) => ({ ...p, isFocusMode: !p.isFocusMode }));
-    const toggleAutoTheme = () =>
-      setPrefs((p) => ({ ...p, isAutoTheme: !p.isAutoTheme }));
-    const toggleOledTheme = () =>
-      setPrefs((p) => ({ ...p, isOledTheme: !p.isOledTheme }));
-    const setAccentHex = (accentHex: string | null) => setPrefs((p) => ({ ...p, accentHex }));
-    const toggleMemorizationMode = () =>
-      setPrefs((p) => ({ ...p, isMemorizationMode: !p.isMemorizationMode }));
-    const toggleParallelTranslations = () =>
-      setPrefs((p) => ({ ...p, isParallelTranslations: !p.isParallelTranslations }));
-    const toggleKanji = () => setPrefs((p) => ({ ...p, showKanji: !p.showKanji }));
-    const setCommentaryLang = (commentaryLang: CommentaryLang) =>
-      setPrefs((p) => ({ ...p, commentaryLang }));
-    const toggleWordMeanings = () =>
-      setPrefs((p) => ({ ...p, showWordMeanings: !p.showWordMeanings }));
-    const toggleVisraam = () =>
-      setPrefs((p) => ({ ...p, showVisraam: !p.showVisraam }));
-    const setCommentarySource = (commentarySource: CommentarySource) =>
-      setPrefs((p) => ({ ...p, commentarySource }));
-    const toggleTapToTranslit = () =>
-      setPrefs((p) => ({ ...p, isTapToTranslit: !p.isTapToTranslit }));
-    const setTranslitStyle = (translitStyle: TranslitStyle) =>
-      setPrefs((p) => ({ ...p, translitStyle }));
+    /** Generic boolean toggle — eliminates repetitive toggle* closures. */
+    const toggleBool = (key: keyof ReaderPrefs) => () =>
+      setPrefs((p) => ({ ...p, [key]: !p[key] }));
 
     return {
       ...prefs,
-      setTheme,
-      toggleTransliteration,
-      toggleTranslation,
-      setTranslationLang,
-      increaseFontSize,
-      decreaseFontSize,
-      toggleLareevarMode,
-      toggleContinuousMode,
-      toggleFocusMode,
-      toggleAutoTheme,
-      toggleOledTheme,
-      setAccentHex,
-      toggleMemorizationMode,
-      toggleParallelTranslations,
-      toggleKanji,
-      setCommentaryLang,
-      setCommentarySource,
-      toggleWordMeanings,
-      toggleVisraam,
-      toggleTapToTranslit,
-      setTranslitStyle,
+      setTheme: (theme: ThemeMode) => setPrefs((p) => ({ ...p, theme })),
+      toggleTransliteration: toggleBool("showTransliteration"),
+      toggleTranslation: toggleBool("showTranslation"),
+      setTranslationLang: (translationLang: TranslationLang) =>
+        setPrefs((p) => ({ ...p, translationLang })),
+      increaseFontSize: () =>
+        setPrefs((p) => ({
+          ...p,
+          fontScale: Math.min(1.6, +(p.fontScale + 0.1).toFixed(2)),
+        })),
+      decreaseFontSize: () =>
+        setPrefs((p) => ({
+          ...p,
+          fontScale: Math.max(0.8, +(p.fontScale - 0.1).toFixed(2)),
+        })),
+      toggleLareevarMode: toggleBool("isLareevarMode"),
+      toggleContinuousMode: toggleBool("isContinuousMode"),
+      toggleFocusMode: toggleBool("isFocusMode"),
+      toggleAutoTheme: toggleBool("isAutoTheme"),
+      toggleOledTheme: toggleBool("isOledTheme"),
+      setAccentHex: (accentHex: string | null) => setPrefs((p) => ({ ...p, accentHex })),
+      toggleMemorizationMode: toggleBool("isMemorizationMode"),
+      toggleParallelTranslations: toggleBool("isParallelTranslations"),
+      toggleKanji: toggleBool("showKanji"),
+      setCommentaryLang: (commentaryLang: CommentaryLang) =>
+        setPrefs((p) => ({ ...p, commentaryLang })),
+      toggleWordMeanings: toggleBool("showWordMeanings"),
+      toggleVisraam: toggleBool("showVisraam"),
+      setCommentarySource: (commentarySource: CommentarySource) =>
+        setPrefs((p) => ({ ...p, commentarySource })),
+      toggleTapToTranslit: toggleBool("isTapToTranslit"),
+      setTranslitStyle: (translitStyle: TranslitStyle) =>
+        setPrefs((p) => ({ ...p, translitStyle })),
     };
   }, [prefs]);
 
