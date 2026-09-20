@@ -372,12 +372,15 @@ export const getAng = cache(
     if (rows.length === 0) return null;
 
     // The `/angs` envelope carries no header — the Raag name comes from the
-    // verses themselves (`raag.unicode`, e.g. "ਰਾਗੁ ਟੋਡੀ").
+    // verses themselves (`raag.unicode` for Gurmukhi, `raag.english` for
+    // the English equivalent used in browser-tab titles).
     const raagName = rows.map((r) => r.raag?.unicode ?? undefined).find(Boolean);
+    const raagNameEn = rows.map((r) => r.raag?.english ?? undefined).find(Boolean);
 
     return {
       angNumber,
       raagName,
+      raagNameEn,
       source: data.source?.english ?? "Sri Guru Granth Sahib Ji",
       lines: rows.map((raw, i) => mapVerse(raw, angNumber, i)),
     };

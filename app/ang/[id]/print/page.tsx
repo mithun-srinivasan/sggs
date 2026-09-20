@@ -65,8 +65,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     };
   }
   const angNumber = parsed;
+  const ang = await getAng(angNumber);
   return {
-    title: `Print Ang ${angNumber} | Sri Guru Granth Sahib Ji`,
+    title: `Print Ang ${angNumber}${ang?.raagNameEn ? ` — ${ang.raagNameEn}` : ""} | Sri Guru Granth Sahib Ji`,
     description: `Print-ready view of Ang ${angNumber} of Sri Guru Granth Sahib Ji.`,
     robots: { index: false },
   };
@@ -100,7 +101,10 @@ export default async function PrintAngPage({ params }: PageProps) {
           <p className="text-xs uppercase tracking-widest text-[var(--text-muted)]">
             {ang.source ?? "Sri Guru Granth Sahib Ji"}
           </p>
-          <h1 className="mt-1 text-xl font-bold">{ang.raagName ?? `Ang ${angNumber}`}</h1>
+          <h1 className="mt-1 text-xl font-bold">{ang.raagName ?? ang.raagNameEn ?? `Ang ${angNumber}`}</h1>
+          {ang.raagName && ang.raagNameEn && ang.raagNameEn !== ang.raagName && (
+            <p className="text-sm text-[var(--text-muted)]">{ang.raagNameEn}</p>
+          )}
           <p className="text-sm text-[var(--text-muted)]">Ang {angNumber} of {MAX_ANG}</p>
         </div>
 

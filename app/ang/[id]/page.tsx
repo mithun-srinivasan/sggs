@@ -90,7 +90,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const ang = await getAng(angNumber);
 
   return {
-    title: `Ang ${angNumber}${ang?.raagName ? ` — ${ang.raagName}` : ""} | Sri Guru Granth Sahib Ji`,
+    title: `Ang ${angNumber}${ang?.raagNameEn ? ` — ${ang.raagNameEn}` : ""} | Sri Guru Granth Sahib Ji`,
     description: ang?.lines?.[0]?.translations?.en ?? `Read Ang ${angNumber} of Sri Guru Granth Sahib Ji.`,
   };
 }
@@ -138,8 +138,11 @@ export default async function AngPage({ params }: PageProps) {
               {ang.source ?? "Sri Guru Granth Sahib Ji"}
             </p>
             <h1 className="font-gurmukhi text-2xl sm:text-3xl font-medium text-[var(--text)]">
-              {ang.raagName ?? `Ang ${ang.angNumber}`}
+              {ang.raagName ?? ang.raagNameEn ?? `Ang ${ang.angNumber}`}
             </h1>
+            {ang.raagName && ang.raagNameEn && ang.raagNameEn !== ang.raagName && (
+              <p className="text-sm text-[var(--text-muted)] font-normal">{ang.raagNameEn}</p>
+            )}
             <p className="text-xs text-[var(--text-muted)] font-normal">
               Ang {ang.angNumber} of {MAX_ANG}
             </p>

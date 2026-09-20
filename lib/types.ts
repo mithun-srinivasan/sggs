@@ -104,7 +104,8 @@ export interface VerseLine {
  */
 export interface Ang {
   angNumber: number; // 1–1430
-  raagName?: string; // e.g. "Japji Sahib" / "Raag Aasaa"
+  raagName?: string; // Gurmukhi raag name, e.g. "ਜਪ" / "ਰਾਗੁ ਆਸਾ"
+  raagNameEn?: string; // English raag name, e.g. "Jap" / "Raag Asa"
   source?: string; // e.g. "Guru Granth Sahib Ji"
   lines: VerseLine[];
 }
